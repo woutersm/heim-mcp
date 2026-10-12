@@ -1,0 +1,183 @@
+import Value from "typebox/value";
+import { ToolError, type ToolDef } from "./tools.ts";
+
+type PropertySchema = Record<string, unknown> & { anyOf?: PropertySchema[] };
+
+type PropType = "string" | "integer" | "number" | "boolean" | "enum";
+
+function enumValues(prop: PropertySchema): string[] | null {
+  const enumList = prop.enum;
+  if (Array.isArray(enumList) && enumList.every((v) => typeof v === "string")) {
+    return enumList as string[];
+  }
+  if (Array.isArray(prop.anyOf)) {
+    const consts = prop.anyOf.map((a) => a.const);
+    if (consts.every((v) => typeof v === "string")) return consts as string[];
+  }
+  return null;
+}
+
+/** The declared type of a property, if it is a flat scalar or a string enum. */
+function propertyType(prop: PropertySchema): PropType | null {
+  const type = prop.type;
+  if (type === "string" || type === "integer" || type === "number" || type === "boolean") {
+    return type;
+  }
+  return enumValues(prop) !== null ? "enum" : null;
+}
+
+function listAllowed(values: string[]): string {
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const v of values) {
+    if (!seen.has(v.toLowerCase())) {
+      seen.add(v.toLowerCase());
+      parts.push(v);
+    }
+  }
+  return parts.join(", ");
+}
+
+/**
+ * Throws a plain `Error` when any property is not a string, integer, number,
+ * boolean, or string enum.
+ */
+export function assertFlat(tool: ToolDef): void {
+  const props = (tool.parameters as unknown as { properties: Record<string, PropertySchema> }).properties;
+  for (const [key, prop] of Object.entries(props) as [string, PropertySchema][]) {
+    if (enumValues(prop) === null && !["string", "integer", "number", "boolean"].includes(String(prop.type))) {
+      throw new Error(`Tool '${tool.name}': argument '${key}' is not flat.`);
+    }
+  }
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
+}
+
+/**
+ * Turns whatever a model sent into the clean arguments a tool runs with.
+ * Throws `ToolError` whose message is one English sentence per problem.
+ */
+export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, unknown> {
+  let value: unknown = raw;
+  if (raw !== undefined && typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      throw new ToolError("Invalid arguments: not valid JSON.");
+    }
+  }
+  if (raw !== undefined && !isPlainObject(value)) {
+    throw new ToolError("Invalid arguments: expected a JSON object.");
+  }
+  const obj = value === undefined ? {} : (value as Record<string, unknown>);
+
+  const props = (tool.parameters as unknown as { properties: Record<string, PropertySchema> }).properties;
+  const names = Object.keys(props);
+  const lowerName = new Map(names.map((n) => [n.toLowerCase(), n]));
+
+  // Rename: argAliases first, then case-insensitive matches. The real name
+  // wins over its alias; the last write for a case-clash wins.
+  const renamed: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    let target: string | undefined = tool.argAliases?.[key];
+    if (target === undefined) target = lowerName.get(key.toLowerCase());
+    renamed[target ?? key] = val;
+  }
+
+  // Drop nulls.
+  for (const [key, val] of Object.entries(renamed)) {
+    if (val === null) delete renamed[key];
+  }
+
+  const result: Record<string, unknown> = {};
+  const sentences: string[] = [];
+  const allowedLists: Record<string, string[]> = {};
+
+  // Per property, in property order: coerce, then validate.
+  for (const name of names) {
+    const prop = props[name];
+    // typebox 1.x marks optionality on the property itself, not via a required array.
+    const required = !prop["~optional"];
+    let v = renamed[name];
+    const present = renamed[name] !== undefined;
+    const type = propertyType(prop);
+    const enums = enumValues(prop) ?? [];
+    if (enums.length > 0) allowedLists[name] = enums;
+
+    if (type === "integer" || type === "number") {
+      if (typeof v === "string" && Number.isFinite(Number(v))) v = Number(v);
+    } else if (type === "boolean") {
+      if (typeof v === "string" && v.toLowerCase() === "true") v = true;
+      else if (typeof v === "string" && v.toLowerCase() === "false") v = false;
+    } else if (type === "string") {
+      if (typeof v === "number") v = String(v);
+    } else if (type === "enum") {
+      if (typeof v === "string") {
+        const s = (v as string).trim();
+        const aliases = tool.valueAliases?.[name];
+        const hit = aliases ? Object.keys(aliases).find((a) => a.toLowerCase() === s.toLowerCase()) : undefined;
+        v = hit !== undefined ? aliases![hit] : enums.find((e) => e.toLowerCase() === s.toLowerCase()) ?? v;
+      }
+    }
+
+    if (!present || v === undefined) {
+      if (required) sentences.push(`Missing argument '${name}'.`);
+      continue;
+    }
+
+    if (type === "integer" && !Number.isInteger(v as number)) {
+      sentences.push(`Argument '${name}' must be an integer.`);
+      continue;
+    }
+    if (type === "number" && !Number.isFinite(v as number)) {
+      sentences.push(`Argument '${name}' must be a number.`);
+      continue;
+    }
+    if (type === "boolean" && typeof v !== "boolean") {
+      sentences.push(`Argument '${name}' must be true or false.`);
+      continue;
+    }
+    if (type === "string" && typeof v !== "string") {
+      sentences.push(`Argument '${name}' must be text.`);
+      continue;
+    }
+    if (type === "enum" && typeof v === "string" && !enums.some((e) => e.toLowerCase() === v.toLowerCase())) {
+      sentences.push(`Argument '${name}' must be one of: ${listAllowed(enums)}.`);
+      continue;
+    }
+    if (type === "enum" && typeof v !== "string") {
+      sentences.push(`Argument '${name}' must be one of: ${listAllowed(enums)}.`);
+      continue;
+    }
+
+    if (typeof v === "number" && typeof prop.minimum === "number" && v < prop.minimum) {
+      sentences.push(`Argument '${name}' must be at least ${prop.minimum}.`);
+      continue;
+    }
+    if (typeof v === "number" && typeof prop.maximum === "number" && v > prop.maximum) {
+      sentences.push(`Argument '${name}' must be at most ${prop.maximum}.`);
+      continue;
+    }
+
+    result[name] = v;
+  }
+
+  // Unknown keys, in the order they were sent.
+  for (const key of Object.keys(renamed)) {
+    if (!names.includes(key)) {
+      sentences.push(`Unknown argument '${key}'. ${tool.name} takes: ${names.join(", ")}.`);
+    }
+  }
+
+  if (sentences.length > 0) {
+    throw new ToolError(sentences.join(" "));
+  }
+
+  if (!Value.Check(tool.parameters, result)) {
+    throw new ToolError(`Invalid arguments for '${tool.name}'.`);
+  }
+
+  return result;
+}

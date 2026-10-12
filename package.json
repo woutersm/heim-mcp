@@ -1,0 +1,24 @@
+{
+  "name": "heim-mcp",
+  "version": "0.1.0",
+  "description": "MCP tools that small and local models can drive: lenient in, strict after, errors a model can act on.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.1",
+    "typebox": "1.3.27",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
+  }
+}
