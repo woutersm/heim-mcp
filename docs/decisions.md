@@ -23,3 +23,10 @@
 - The `CaseFile` TypeBox schema uses `Type.Object({})` for `arguments` and `Type.Optional(Type.Boolean())` for `error`; at typebox 1.3.27 the former accepts any JSON object (including nested) and the latter accepts `true` and `false` but not a missing key. The runtime types (`CaseFileT` etc.) are declared by hand rather than `Value.Infer`, because the two diverge for `arguments` and `error` (infer gives `object` and makes `error` required).
 - `eval/demo-cases.json` holds 15 cases: the README's case verbatim plus 14 covering every tool, a two-call case, small-model argument shapes (`"id": "3"`, `null`, `"Groceries"`, `todo_id`) and five `error: true` cases (missing arg, wrong type, enum miss, unknown arg, unknown tool, unknown id). Goldens are written from phase 3's reply formats, not copied from a run.
 - `connect()` closes the server when the client is closed by wrapping `client.close()` with the bound original plus `server.close()`, so callers only handle one handle.
+
+## Phase 5: Model mode and the eval command
+
+- `runModelCase` pushes the assistant message back verbatim (including when `content` is absent) and then one `role: "tool"` message per call. An unparseable `arguments` JSON records `{}` in the result `calls` but never reaches `client.callTool`; the model gets the fixed sentence `Invalid arguments: not valid JSON.`
+- `matchCalls` compares argument values with both sides trimmed and lower-cased as strings; missing expected arguments report `got <absent>`, extra actual arguments are ignored. Count differences get exactly one line (`expected 2 calls, got 1`), after which per-position lines still run.
+- `heim-mcp-eval` defaults `--cases` to the package's own `eval/demo-cases.json` via `new URL("../../eval/demo-cases.json", import.meta.url).pathname`; `files` now ships `eval/` alongside `dist/`. The API key comes only from `OPENAI_API_KEY`; a key of `""` still sets the authorization header (checked for `undefined`, not truthiness).
+- The bin creates one fresh backend and connects one client per case (model mode needs the client for `listTools`; replay mode reuses `replayCase` which wants the backend).

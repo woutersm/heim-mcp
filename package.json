@@ -23,7 +23,8 @@
     "vitest": "5.0.2"
   },
   "bin": {
-    "heim-mcp-demo": "dist/bin/demo.js"
+    "heim-mcp-demo": "dist/bin/demo.js",
+    "heim-mcp-eval": "dist/bin/eval.js"
   },
   "exports": {
     ".": {
@@ -32,6 +33,7 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "eval"
   ]
 }

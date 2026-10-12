@@ -10,3 +10,6 @@ export { loadCases } from "./eval/cases.ts";
 export type { CaseFileT, EvalCall, EvalCase } from "./eval/cases.ts";
 export { connect } from "./eval/connect.ts";
 export { replayCase } from "./eval/replay.ts";
+export { runModelCase } from "./eval/model.ts";
+export type { ModelOptions } from "./eval/model.ts";
+export { matchCalls } from "./eval/match.ts";
