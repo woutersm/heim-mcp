@@ -186,3 +186,19 @@ describe("assertFlat", () => {
     expect(() => assertFlat(t)).toThrow("Tool 'nested': argument 'user' is not flat.");
   });
 });
+
+describe("number coercion", () => {
+  it("does not turn an empty or blank string into 0", () => {
+    expect(() => prepareArguments(todoDone, { id: "" })).toThrow("Argument 'id' must be an integer.");
+    expect(() => prepareArguments(todoDone, { id: "  " })).toThrow("Argument 'id' must be an integer.");
+  });
+
+  it("does not read hex or exponent strings as numbers", () => {
+    expect(() => prepareArguments(todoDone, { id: "0x10" })).toThrow("Argument 'id' must be an integer.");
+    expect(() => prepareArguments(todoDone, { id: "1e2" })).toThrow("Argument 'id' must be an integer.");
+  });
+
+  it("still reads a plain number string, with spaces around it", () => {
+    expect(prepareArguments(todoDone, { id: " 3 " })).toEqual({ id: 3 });
+  });
+});

@@ -107,7 +107,8 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
     if (enums.length > 0) allowedLists[name] = enums;
 
     if (type === "integer" || type === "number") {
-      if (typeof v === "string" && Number.isFinite(Number(v))) v = Number(v);
+      // Only a plain decimal: `Number()` would read "" as 0 and "0x10" as 16.
+      if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim())) v = Number(v.trim());
     } else if (type === "boolean") {
       if (typeof v === "string" && v.toLowerCase() === "true") v = true;
       else if (typeof v === "string" && v.toLowerCase() === "false") v = false;
