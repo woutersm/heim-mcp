@@ -10,3 +10,10 @@
 - `createServer` reads `backend.tools()` once (not per request), so `tools/list` and `tools/call` share one tool table; duplicate-name and `assertFlat` checks are startup errors, not per-request.
 - The internal-error handler logs `err.name` (falling back to `"Error"` for non-`Error` throws) and never the message, per the design's stdout rule.
 - `serveStdio` exists only for the typecheck; nothing in the tests connects it, since `StdioServerTransport` would hold stdin.
+
+## Phase 3: The demo backend
+
+- Invented the eight fixture todos exactly as specified; `createDemoBackend` deep-copies them per backend instance, so each backend is independent and a new id is max id + 1.
+- `due` is validated in the backend, not the TypeBox schema: the schema is a plain `Type.String()` and the backend accepts `YYYY-MM-DD` (rejecting impossible dates like 2026-02-30 via a round-trip check), `today`, or `tomorrow` case-insensitively. Kept the schema a plain string so the JSON schema stays simple for small models.
+- `tomorrow` is computed from the injected `today` in UTC; the bin injects the local date via `new Date().toLocaleDateString("sv-SE")` which is `YYYY-MM-DD`.
+- The demo tool list is a module-level constant; only the todo data is per-backend mutable state.

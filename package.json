@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.1",
@@ -20,5 +21,17 @@
     "@types/node": "22.20.4",
     "typescript": "5.9.3",
     "vitest": "5.0.2"
-  }
+  },
+  "bin": {
+    "heim-mcp-demo": "dist/bin/demo.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ]
 }
