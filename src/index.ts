@@ -6,3 +6,7 @@ export { serveStdio } from "./stdio.ts";
 export { createDemoBackend } from "./demo/backend.ts";
 export { FIXTURES } from "./demo/fixtures.ts";
 export type { FixtureTodo } from "./demo/fixtures.ts";
+export { loadCases } from "./eval/cases.ts";
+export type { CaseFileT, EvalCall, EvalCase } from "./eval/cases.ts";
+export { connect } from "./eval/connect.ts";
+export { replayCase } from "./eval/replay.ts";

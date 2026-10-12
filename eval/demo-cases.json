@@ -1,0 +1,181 @@
+{
+  "today": "2026-03-02",
+  "cases": [
+    {
+      "id": "add-with-alias-and-day-word",
+      "message": "Put milk on the groceries, for tomorrow",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "text": "Milk", "list": "Groceries", "due": "tomorrow" },
+          "reply": "Added #9 'Milk' to shopping, due 2026-03-03."
+        }
+      ]
+    },
+    {
+      "id": "done-then-done-again",
+      "message": "Done with the gate latch, and the hallway bulb too",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 3 },
+          "reply": "Done: #3 'Fix the gate latch'."
+        },
+        {
+          "name": "todo_done",
+          "arguments": { "id": 6 },
+          "reply": "#6 'Replace hallway bulb' was already done."
+        }
+      ]
+    },
+    {
+      "id": "string-id",
+      "message": "I'm done with number 4",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": "4" },
+          "reply": "Done: #4 'Prune the apple tree'."
+        }
+      ]
+    },
+    {
+      "id": "todo-id-alias",
+      "message": "Remove todo 5",
+      "calls": [
+        {
+          "name": "todo_delete",
+          "arguments": { "todo_id": 5 },
+          "reply": "Deleted #5 'Descale the kettle'."
+        }
+      ]
+    },
+    {
+      "id": "string-list-alias",
+      "message": "Put eggs on the groceries",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Eggs", "list": "Groceries" },
+          "reply": "Added #9 'Eggs' to shopping."
+        }
+      ]
+    },
+    {
+      "id": "null-for-optional",
+      "message": "Add a broom, no list, no date",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Broom", "list": null, "due": null },
+          "reply": "Added #9 'Broom' to home."
+        }
+      ]
+    },
+    {
+      "id": "list-open-garden",
+      "message": "What's left in the garden?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "garden" },
+          "reply": "#3 Fix the gate latch (garden, due 2026-03-04)\n#4 Prune the apple tree (garden)"
+        }
+      ]
+    },
+    {
+      "id": "empty-filter",
+      "message": "Any done garden tasks?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "garden", "done": true },
+          "reply": "Nothing on the list."
+        }
+      ]
+    },
+    {
+      "id": "search-no-match",
+      "message": "Anything about the fence?",
+      "calls": [
+        {
+          "name": "todo_search",
+          "arguments": { "query": "fence" },
+          "reply": "Nothing matches 'fence'."
+        }
+      ]
+    },
+    {
+      "id": "missing-argument",
+      "message": "Add a todo with no title",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "list": "home" },
+          "reply": "Missing argument 'title'.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "wrong-type",
+      "message": "Finish todo '3' but the 3 is not a number",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": "three" },
+          "reply": "Argument 'id' must be an integer.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "enum-miss",
+      "message": "Put soap in the school list",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Soap", "list": "school" },
+          "reply": "Argument 'list' must be one of: home, shopping, garden.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "unknown-argument",
+      "message": "Finish the bulb, and the label says done-forever",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 6, "forever": true },
+          "reply": "Unknown argument 'forever'. todo_done takes: id.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "unknown-tool",
+      "message": "Archive everything",
+      "calls": [
+        {
+          "name": "todo_archive",
+          "arguments": {},
+          "reply": "Unknown tool 'todo_archive'. Tools: todo_add, todo_list, todo_done, todo_delete, todo_search.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "unknown-id",
+      "message": "I'm done with task 99",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 99 },
+          "reply": "No todo #99. Use todo_list to see the ids.",
+          "error": true
+        }
+      ]
+    }
+  ]
+}

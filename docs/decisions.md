@@ -17,3 +17,9 @@
 - `due` is validated in the backend, not the TypeBox schema: the schema is a plain `Type.String()` and the backend accepts `YYYY-MM-DD` (rejecting impossible dates like 2026-02-30 via a round-trip check), `today`, or `tomorrow` case-insensitively. Kept the schema a plain string so the JSON schema stays simple for small models.
 - `tomorrow` is computed from the injected `today` in UTC; the bin injects the local date via `new Date().toLocaleDateString("sv-SE")` which is `YYYY-MM-DD`.
 - The demo tool list is a module-level constant; only the todo data is per-backend mutable state.
+
+## Phase 4: Golden replay eval
+
+- The `CaseFile` TypeBox schema uses `Type.Object({})` for `arguments` and `Type.Optional(Type.Boolean())` for `error`; at typebox 1.3.27 the former accepts any JSON object (including nested) and the latter accepts `true` and `false` but not a missing key. The runtime types (`CaseFileT` etc.) are declared by hand rather than `Value.Infer`, because the two diverge for `arguments` and `error` (infer gives `object` and makes `error` required).
+- `eval/demo-cases.json` holds 15 cases: the README's case verbatim plus 14 covering every tool, a two-call case, small-model argument shapes (`"id": "3"`, `null`, `"Groceries"`, `todo_id`) and five `error: true` cases (missing arg, wrong type, enum miss, unknown arg, unknown tool, unknown id). Goldens are written from phase 3's reply formats, not copied from a run.
+- `connect()` closes the server when the client is closed by wrapping `client.close()` with the bound original plus `server.close()`, so callers only handle one handle.
