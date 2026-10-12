@@ -1,0 +1,108 @@
+# heim-mcp
+
+> TypeScript library that serves tools over MCP (stdio) to small and local models: lenient with what a model sends, strict after that, every mistake one English sentence.
+
+## API
+
+Every export of `heim-mcp` (see `src/index.ts`):
+
+- `ToolError` — `class ToolError extends Error`; throw it from `call` when the mistake is one the model can fix; its message is the sentence the model reads.
+- `ToolDef` (type) — `{ name: string; description: string; parameters: TObject; annotations?: ToolAnnotations; argAliases?: Record<string, string>; valueAliases?: Record<string, Record<string, string>> }`; one tool. `parameters` must be flat.
+- `ToolAnnotations` (type) — `{ readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean }`; published in `tools/list`.
+- `ToolBackend` (type) — `{ tools(): readonly ToolDef[]; call(name: string, args: Record<string, unknown>): string | Promise<string> }`; `args` are already clean.
+- `prepareArguments(tool: ToolDef, raw: unknown): Record<string, unknown>` — the validator on its own; throws `ToolError` with one sentence per problem.
+- `assertFlat(tool: ToolDef): void` — throws a plain `Error` when any property is not a string, integer, number, boolean, or string enum.
+- `createServer(backend: ToolBackend, info: { name: string; version: string }): Server` — the MCP `Server`; a duplicate tool name or a non-flat tool throws at startup.
+- `serveStdio(backend: ToolBackend, info: { name: string; version: string }): Promise<void>` — `createServer` connected to stdio.
+- `createDemoBackend(today: string): ToolBackend` — the in-memory household todo list with its fixture data.
+- `FIXTURES` — the eight invented todos seeded into the demo.
+- `FixtureTodo` (type) — `{ id: number; title: string; list: "home" | "shopping" | "garden"; due: string | null; done: boolean }`.
+- `loadCases(path: string): CaseFileT` — reads and checks a case file; a bad file or duplicate id throws `Error("<path>: ...")`.
+- `CaseFileT` (type) — `{ today: string; cases: EvalCase[] }`.
+- `EvalCase` (type) — `{ id: string; message: string; calls: EvalCall[] }`.
+- `EvalCall` (type) — `{ name: string; arguments: Record<string, unknown>; reply: string; error?: boolean }`.
+- `connect(backend: ToolBackend): Promise<Client>` — an MCP `Client` joined to `createServer(backend, ...)` over the SDK's in-memory transport.
+- `replayCase(backend: ToolBackend, c: EvalCase): Promise<string[]>` — runs a case through the demo server; returns one line per mismatch, empty when the case is golden.
+- `runModelCase(client: Client, c: EvalCase, today: string, opts: ModelOptions): Promise<{ calls: { name: string; arguments: Record<string, unknown> }[]; answer: string }>` — drives a case through any OpenAI-compatible endpoint.
+- `ModelOptions` (type) — `{ baseUrl: string; model: string; apiKey?: string; fetch: typeof fetch; maxSteps?: number }`.
+- `matchCalls(expected: EvalCall[], actual: { name: string; arguments: Record<string, unknown> }[]): string[]` — the call comparison; values are compared as trimmed, lowercased strings.
+
+## Rules
+
+Lenient in, strict after. `prepareArguments` normalises, in this order:
+
+1. An argument that arrives as a JSON string is parsed; a non-object argument fails as `Invalid arguments: expected a JSON object.`
+2. Arguments whose value is `null` are dropped.
+3. Argument names are matched in any case; `argAliases` (alias → argument) are renamed first, and the real name wins over its alias.
+4. `"3"` becomes `3` for an integer, `"true"`/`"false"` become booleans, `42` becomes `"42"` for a string.
+5. Enum values match in any case, and through `valueAliases` (per argument, alias → value): `Groceries` and `boodschappen` become `shopping`.
+
+Then the strict TypeBox schema runs; the schema the model sees in `tools/list` is unchanged by any of this.
+
+- Arguments are flat: a `Tool.Object` of string, integer, number, boolean, or string-enum properties only. `createServer` throws at startup for a nested object or array.
+- Every failure a model should read is returned as an MCP result with `isError: true` and one English sentence. A handler that throws becomes a JSON-RPC error instead, which the model never sees; throw `ToolError` for mistakes, and anything else is reported as `The tool '<name>' failed with an internal error.`
+- Over stdio, stdout is the protocol: log to stderr only (`console.error`), with the tool name and the error's `name`, never an argument value or a reply.
+- `readOnlyHint`, `destructiveHint`, and `idempotentHint` are published in `tools/list` when set on the tool.
+
+## Error sentences
+
+One sentence per problem, naming what is allowed:
+
+- `Invalid arguments: not valid JSON.`
+- `Invalid arguments: expected a JSON object.`
+- `Missing argument 'title'.`
+- `Argument 'id' must be an integer.`
+- `Argument 'list' must be one of: home, shopping, garden.`
+- `Unknown argument 'colour'. todo_add takes: title, list, due.`
+- `Argument 'id' must be at least 1.`
+- `Unknown tool 'todo_finish'. Tools: todo_add, todo_list, todo_done, todo_delete, todo_search.`
+- `The tool 'todo_done' failed with an internal error.`
+- `No todo #99. Use todo_list to see the ids.`
+- `Argument 'due' must be a date as YYYY-MM-DD, 'today' or 'tomorrow'.`
+
+## Demo tools
+
+The demo is an in-memory household todo list; `createDemoBackend(today)` with `today` as `YYYY-MM-DD`.
+
+- `todo_add` — parameters: `title` (string, required), `list` (one of `home`, `shopping`, `garden`, optional), `due` (optional; `YYYY-MM-DD`, `today` or `tomorrow`). Aliases: `text`/`name` → `title`, `date`/`when` → `due`, `category` → `list`; `groceries`/`boodschappen` → `shopping`, `house`/`thuis` → `home`, `tuin` → `garden`. Reply: `Added #9 'Milk' to shopping, due 2026-03-03.`
+- `todo_list` — parameters: `list` (optional), `done` (boolean, optional, default false). Read-only. One line per todo: `#1 Buy dish soap (shopping, due 2026-03-02)`; `Nothing on the list.` when empty.
+- `todo_done` — parameters: `id` (integer ≥ 1). Idempotent. Aliases: `todo_id`/`todo` → `id`. Replies: `Done: #1 'Buy dish soap'.`, `#6 'Replace hallway bulb' was already done.`
+- `todo_delete` — parameters: `id` (integer ≥ 1). Destructive. Aliases: `todo_id`/`todo` → `id`. Reply: `Deleted #1 'Buy dish soap'.`
+- `todo_search` — parameters: `query` (string). Read-only. Aliases: `q`/`text` → `query`. Case-insensitive title match; `Nothing matches 'x'.` when empty.
+
+## Eval
+
+A case file is `{ "today": "YYYY-MM-DD", "cases": [...] }`; each case is `{ "id", "message", "calls": [{ "name", "arguments", "reply", "error"? }] }`. `error: true` means the call should fail with `reply` as its error text. The shipped cases are in `eval/demo-cases.json`.
+
+```json
+{
+  "today": "2026-03-02",
+  "cases": [
+    {
+      "id": "add-with-alias-and-day-word",
+      "message": "Put milk on the groceries, for tomorrow",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "text": "Milk", "list": "Groceries", "due": "tomorrow" },
+          "reply": "Added #9 'Milk' to shopping, due 2026-03-03."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Replay mode runs each case against a fresh demo backend through an MCP client over an in-memory transport; no model, runs in CI:
+
+```sh
+npx -p heim-mcp heim-mcp-eval --replay
+```
+
+Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). Set `OPENAI_API_KEY` if the endpoint needs a key:
+
+```sh
+npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
+```
+
+Both modes print one line per case and `<passed>/<total> cases`, and exit non-zero on a failure.

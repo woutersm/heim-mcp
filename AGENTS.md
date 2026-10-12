@@ -103,3 +103,33 @@ Claiming a criterion you did not verify is the one outcome that wastes the whole
 `styre_finish` counts your red `styre_gate` runs itself. They are not held against you;
 they show which criteria are hard to hit.
 <!-- styre:end -->
+
+# heim-mcp
+
+Working in this repository. The rules below exist because small models read and act on
+everything this project produces, and the README is the promise they must stay true to.
+
+## Checks
+
+```sh
+npm run typecheck && npm test && npm run build
+```
+
+## Rules
+
+- No test touches the network, spawns a process, or starts a server. A client and a server
+  are joined with the SDK's `InMemoryTransport` (see `src/eval/connect.ts`).
+- No `console.log` in `src/` outside `src/bin/eval.ts`: over stdio, stdout is the protocol,
+  and one stray line corrupts it. Logging is `console.error`, and a log line never holds an
+  argument value or a reply — only a tool name and an error's `name`.
+- A tool's `parameters` is a flat `Type.Object`: string, integer, number, boolean, or a
+  string enum. No nested object, no array. `createServer` throws at startup for anything
+  else, so keep the demo and your own backends flat.
+- Every failure a model should read is an MCP result with `isError: true` and one English
+  sentence; never thrown out of a request handler. Throw `ToolError` for mistakes a model
+  can fix; any other error becomes the internal-error sentence.
+- A dependency is added only at an exact version the owner names, with `npm install
+  --save-exact`.
+- `README.md` changes only with its test: `test/docs.test.ts` checks its tool names, its
+  error sentences, its eval example, and its bin names against the code. Change the README
+  and its test in the same edit; if the test fails, the code has drifted from the promise.

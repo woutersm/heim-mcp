@@ -30,3 +30,9 @@
 - `matchCalls` compares argument values with both sides trimmed and lower-cased as strings; missing expected arguments report `got <absent>`, extra actual arguments are ignored. Count differences get exactly one line (`expected 2 calls, got 1`), after which per-position lines still run.
 - `heim-mcp-eval` defaults `--cases` to the package's own `eval/demo-cases.json` via `new URL("../../eval/demo-cases.json", import.meta.url).pathname`; `files` now ships `eval/` alongside `dist/`. The API key comes only from `OPENAI_API_KEY`; a key of `""` still sets the authorization header (checked for `undefined`, not truthiness).
 - The bin creates one fresh backend and connects one client per case (model mode needs the client for `listTools`; replay mode reuses `replayCase` which wants the backend).
+
+## Phase 6: Docs for machines, and the README kept honest
+
+- `test/docs.test.ts` derives its expectations from the code rather than re-typing them: it reads the README's fenced `## Error sentences` block (pinned to exactly 5 lines), extracts each line, and asserts each both against the literal sentence and against the real output of `prepareArguments`/`callTool` on the demo tools — so a README edit that drifts from the code fails the same test that edits it. The eval example is matched by case id and compared argument-by-argument to `eval/demo-cases.json`.
+- The `llms.txt` API section is checked by parsing `src/index.ts` export names with a regex, not by a hand-kept list; a new export without docs fails the test.
+- `AGENTS.md` keeps its rules short and rule-level (why: a model reads and acts on this file); the detailed how-tos live in `llms.txt` and the code.
