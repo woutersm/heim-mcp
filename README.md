@@ -157,7 +157,7 @@ npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-
 
 ## Why these rules
 
-The rules come from [heim](https://github.com/woutersm), a private assistant for one
+The rules come from heim, a private assistant for one
 household that runs on a local model with eleven tools.
 
 - Its users write Dutch and English, so every parser accepts aliases in both.
