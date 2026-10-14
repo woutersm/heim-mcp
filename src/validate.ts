@@ -19,6 +19,7 @@ function enumValues(prop: PropertySchema): string[] | null {
 
 /** The declared type of a property, if it is a flat scalar or a string enum. */
 function propertyType(prop: PropertySchema): PropType | null {
+  if (enumValues(prop) !== null) return "enum";
   const type = prop.type;
   if (type === "string" || type === "integer" || type === "number" || type === "boolean") {
     return type;
@@ -71,24 +72,30 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
   if (raw !== undefined && !isPlainObject(value)) {
     throw new ToolError("Invalid arguments: expected a JSON object.");
   }
-  const obj = value === undefined ? {} : (value as Record<string, unknown>);
+  // Drop nulls before renaming so a null alias can never remove a real value.
+  const obj: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(
+    value === undefined ? {} : (value as Record<string, unknown>),
+  )) {
+    if (val !== null) obj[key] = val;
+  }
 
   const props = (tool.parameters as unknown as { properties: Record<string, PropertySchema> }).properties;
   const names = Object.keys(props);
   const lowerName = new Map(names.map((n) => [n.toLowerCase(), n]));
 
-  // Rename: argAliases first, then case-insensitive matches. The real name
-  // wins over its alias; the last write for a case-clash wins.
+  // Rename: argAliases keys first, then every other key, so a real name
+  // overwrites its alias in either order; the last write for a case-clash
+  // wins. Unknown keys keep the order they were sent in.
   const renamed: Record<string, unknown> = {};
-  for (const [key, val] of Object.entries(obj)) {
-    let target: string | undefined = tool.argAliases?.[key];
-    if (target === undefined) target = lowerName.get(key.toLowerCase());
-    renamed[target ?? key] = val;
-  }
-
-  // Drop nulls.
-  for (const [key, val] of Object.entries(renamed)) {
-    if (val === null) delete renamed[key];
+  for (const pass of [0, 1]) {
+    for (const [key, val] of Object.entries(obj)) {
+      const isAlias = tool.argAliases?.[key] !== undefined;
+      if ((pass === 0) !== isAlias) continue;
+      let target: string | undefined = tool.argAliases?.[key];
+      if (target === undefined) target = lowerName.get(key.toLowerCase());
+      renamed[target ?? key] = val;
+    }
   }
 
   const result: Record<string, unknown> = {};

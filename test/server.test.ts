@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Type from "typebox";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createServer } from "../src/server.ts";
 import { ToolError, type ToolBackend, type ToolDef } from "../src/index.ts";
 
@@ -114,6 +115,40 @@ describe("tools/call", () => {
       expect(res.content).toEqual([
         { type: "text", text: "Argument 'list' must be one of: home, shopping, garden." },
       ]);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("parses arguments sent as a JSON string", async () => {
+    const { client, server } = await connect(makeBackend());
+    try {
+      const res = await client.request(
+        { method: "tools/call", params: { name: "todo_add", arguments: '{"title":"Milk"}' } } as never,
+        CallToolResultSchema,
+      );
+      expect(res.isError).not.toBe(true);
+      expect(res.content).toEqual([{ type: "text", text: "Added 'Milk'." }]);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("answers null and array arguments with the Invalid arguments sentence", async () => {
+    const { client, server } = await connect(makeBackend());
+    try {
+      for (const args of [null, [1]]) {
+        const res = await client.request(
+          { method: "tools/call", params: { name: "todo_add", arguments: args } } as never,
+          CallToolResultSchema,
+        );
+        expect(res.isError).toBe(true);
+        expect(res.content).toEqual([
+          { type: "text", text: "Invalid arguments: expected a JSON object." },
+        ]);
+      }
     } finally {
       await client.close();
       await server.close();

@@ -72,10 +72,28 @@ describe("prepareArguments", () => {
 
   it("lets the real name win over its alias", () => {
     expect(prepareArguments(todoAdd, { text: "Alias", title: "Real" })).toEqual({ title: "Real" });
+    expect(prepareArguments(todoAdd, { title: "Real", text: "Alias" })).toEqual({ title: "Real" });
   });
 
   it("drops keys whose value is null", () => {
     expect(prepareArguments(todoAdd, { title: "Milk", list: null })).toEqual({ title: "Milk" });
+    expect(prepareArguments(todoAdd, { title: "Milk", text: null })).toEqual({ title: "Milk" });
+  });
+
+  it("treats a { type: 'string', enum } property as an enum", () => {
+    const t: ToolDef = {
+      name: "unsafe_enum",
+      description: "u",
+      parameters: Type.Object({
+        list: Type.Optional(Type.Unsafe<string>({ type: "string", enum: ["home", "shopping", "garden"] })),
+      }),
+      valueAliases: { list: { groceries: "shopping" } },
+    };
+    expect(prepareArguments(t, { list: "Groceries" })).toEqual({ list: "shopping" });
+    expect(prepareArguments(t, { list: "HOME" })).toEqual({ list: "home" });
+    expect(message(t, { list: "school" })).toBe(
+      "Argument 'list' must be one of: home, shopping, garden.",
+    );
   });
 
   it("coerces '3' to 3 for an integer", () => {
