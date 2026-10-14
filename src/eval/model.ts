@@ -60,14 +60,24 @@ export async function runModelCase(
       messages.push(message as ChatMessage);
       for (const tc of message.tool_calls) {
         let args: Record<string, unknown>;
+        let parsed: unknown;
         try {
-          args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+          parsed = JSON.parse(tc.function.arguments);
         } catch {
-          args = {};
           messages.push({ role: "tool", tool_call_id: tc.id, content: "Invalid arguments: not valid JSON." });
-          calls.push({ name: tc.function.name, arguments: args });
+          calls.push({ name: tc.function.name, arguments: {} });
           continue;
         }
+        if (
+          parsed === null ||
+          typeof parsed !== "object" ||
+          Array.isArray(parsed)
+        ) {
+          messages.push({ role: "tool", tool_call_id: tc.id, content: "Invalid arguments: expected a JSON object." });
+          calls.push({ name: tc.function.name, arguments: {} });
+          continue;
+        }
+        args = parsed as Record<string, unknown>;
         calls.push({ name: tc.function.name, arguments: args });
         const toolResult = (await client.callTool({ name: tc.function.name, arguments: args })) as {
           content: unknown;

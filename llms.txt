@@ -25,7 +25,7 @@ Every export of `heim-mcp` (see `src/index.ts`):
 - `replayCase(backend: ToolBackend, c: EvalCase): Promise<string[]>` — runs a case through the demo server; returns one line per mismatch, empty when the case is golden.
 - `runModelCase(client: Client, c: EvalCase, today: string, opts: ModelOptions): Promise<{ calls: { name: string; arguments: Record<string, unknown> }[]; answer: string }>` — drives a case through any OpenAI-compatible endpoint.
 - `ModelOptions` (type) — `{ baseUrl: string; model: string; apiKey?: string; fetch: typeof fetch; maxSteps?: number }`.
-- `matchCalls(expected: EvalCall[], actual: { name: string; arguments: Record<string, unknown> }[]): string[]` — the call comparison; values are compared as trimmed, lowercased strings.
+- `matchCalls(expected: EvalCall[], actual: { name: string; arguments: Record<string, unknown> }[], tools: readonly ToolDef[]): string[]` — the call comparison. Both sides first go through `prepareArguments` for the tool of that name (so a call written with aliases and alias values matches a strict call; a tool whose name is missing, or whose arguments fail normalisation, is compared as written); an extra actual call of a read-only tool that no expected call names is ignored; then values are compared as trimmed, lowercased strings.
 
 ## Rules
 

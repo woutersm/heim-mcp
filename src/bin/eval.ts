@@ -34,7 +34,7 @@ for (const c of file.cases) {
         apiKey: process.env.OPENAI_API_KEY,
         fetch,
       });
-      mismatches = matchCalls(c.calls, calls);
+      mismatches = matchCalls(c.calls, calls, backend.tools());
     }
   } finally {
     await client.close();

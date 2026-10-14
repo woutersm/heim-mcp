@@ -124,6 +124,29 @@ describe("runModelCase", () => {
     expect(second[3]).toEqual({ role: "tool", tool_call_id: "call_1", content: "Invalid arguments: not valid JSON." });
   });
 
+  it.each([["null"], ["[1]"]])("treats non-object JSON %s like unparseable JSON and never calls the tool", async (argumentsJson) => {
+    const client = await setup();
+    const before = await client.callTool({ name: "todo_list", arguments: {} });
+    const f = new ScriptedFetch()
+      .push(toolCallMessage("todo_add", argumentsJson))
+      .push(answerMessage("Sorry."));
+    const result = await runModelCase(client, CASE, "2026-03-02", {
+      baseUrl: "http://localhost:8080/v1",
+      model: "local",
+      fetch: f.call,
+    });
+    const after = await client.callTool({ name: "todo_list", arguments: {} });
+    await client.close();
+
+    const text = (r: unknown) => ((r as { content: { text?: string }[] }).content[0]?.text ?? "");
+    // The backend state is unchanged: no todo was added.
+    expect(text(after)).toBe(text(before));
+    // The recorded call keeps empty arguments.
+    expect(result.calls).toEqual([{ name: "todo_add", arguments: {} }]);
+    const second = f.requests[1].body.messages as { role: string; tool_call_id?: string; content?: string }[];
+    expect(second[3]).toEqual({ role: "tool", tool_call_id: "call_1", content: "Invalid arguments: expected a JSON object." });
+  });
+
   it("stops after maxSteps requests when the model never stops calling", async () => {
     const client = await setup();
     const f = new ScriptedFetch();

@@ -42,3 +42,25 @@
 - The `tools/call` handler is registered through `Protocol.prototype.setRequestHandler` with a lenient hand-rolled schema (`arguments: z.unknown().optional()`) instead of the SDK's `CallToolRequestSchema`. The SDK's `Server.setRequestHandler` wraps every `tools/call` handler with a strict check that rejects a string, `null` or array `arguments` with a JSON-RPC error before `prepareArguments` ever runs, so the README's promise (a JSON string is parsed; a non-object gets the `Invalid arguments: expected a JSON object.` sentence) was unreachable over MCP.
 - In `prepareArguments`, `null` values are dropped *before* alias renaming, and alias keys are renamed in a first pass with every other key in a second pass: the real name then overwrites its alias in either key order, a `null` alias can never remove a real value, and unknown keys keep their sent order in the `Unknown argument` sentence.
 - `propertyType` checks `enumValues(prop) !== null` before looking at `type`, so a `{ type: "string", enum: [...] }` property (e.g. written via `Type.Unsafe`) gets value aliases, case-insensitive matching and the `must be one of` sentence, not plain-string handling.
+
+## Phase 2: matchCalls compares what the model meant
+
+`matchCalls` now takes the backend's tools as a required third argument and runs both the
+expected and the actual call's arguments through `prepareArguments` for the tool of that name
+before comparing. This makes a correct, strict call (real names, canonical enum values) match
+an expected call written with aliases and alias values. When there is no tool of the name, or
+`prepareArguments` throws (e.g. an expected `id: "three"` for an integer), that side is
+compared as written — the raw values, same mismatch lines as before.
+
+Extra actual calls of a read-only tool (`annotations.readOnlyHint === true`) whose name appears
+in no expected call are dropped before the count comparison, since a model that looks
+something up first (e.g. `todo_search` before `todo_done`) is sensible. A read-only call the
+case actually expects is kept and still required, so `list-open-garden` fails with zero calls.
+
+In `runModelCase`, `function.arguments` that parses to a non-object (`"null"`, `"[]"`, `"5"`)
+is treated like unparseable JSON: the model gets `Invalid arguments: expected a JSON object.`,
+the call is recorded with `{}` arguments, and the tool is not called.
+
+Decision on the non-object JSON wording: this reuses the exact `Invalid arguments: expected a
+JSON object.` sentence `prepareArguments` already produces, so the model always reads the same
+sentence whether the invalidity was caught in the model loop or the validator.
