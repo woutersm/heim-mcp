@@ -64,3 +64,19 @@ the call is recorded with `{}` arguments, and the tool is not called.
 Decision on the non-object JSON wording: this reuses the exact `Invalid arguments: expected a
 JSON object.` sentence `prepareArguments` already produces, so the model always reads the same
 sentence whether the invalidity was caught in the model loop or the validator.
+
+## Phase 3: Model mode scores only what a model can do
+
+- The case loop moved from `src/bin/eval.ts` into `src/eval/run.ts` (`runEval(file, model?)`)
+  so tests exercise it without spawning the bin. `runEval` is deliberately not exported from
+  `src/index.ts` — it is eval plumbing, not library surface. `runOne` catches per-case throws
+  (endpoint 500/429, non-JSON bodies) into a `FAIL <id>: <message>` line; one endpoint
+  failure can no longer kill the run before the summary.
+- `replay_only?: boolean` on `EvalCase` (TypeBox `Type.Optional(Type.Boolean())`). Model mode
+  skips it (`skip <id> (replay only)`, excluded from the scored count and from `ok`); replay
+  mode ignores the flag entirely and runs every case. Exactly five shipped cases carry it —
+  the deliberate mistakes a good model cannot reproduce; `unknown-id` stays scored.
+- Summary line formats: replay `<passed>/<total> cases`; model `<passed>/<scored> cases,
+  <skipped> replay-only skipped`. The bin prints the lines and exits on `ok`.
+- Default `--cases` path is now `fileURLToPath(new URL(...))` — no `%20`, and a correct
+  absolute path on Windows.

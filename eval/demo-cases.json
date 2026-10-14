@@ -107,6 +107,7 @@
     },
     {
       "id": "missing-argument",
+      "replay_only": true,
       "message": "Add a todo with no title",
       "calls": [
         {
@@ -119,6 +120,7 @@
     },
     {
       "id": "wrong-type",
+      "replay_only": true,
       "message": "Finish todo '3' but the 3 is not a number",
       "calls": [
         {
@@ -131,6 +133,7 @@
     },
     {
       "id": "enum-miss",
+      "replay_only": true,
       "message": "Put soap in the school list",
       "calls": [
         {
@@ -143,6 +146,7 @@
     },
     {
       "id": "unknown-argument",
+      "replay_only": true,
       "message": "Finish the bulb, and the label says done-forever",
       "calls": [
         {
@@ -155,6 +159,7 @@
     },
     {
       "id": "unknown-tool",
+      "replay_only": true,
       "message": "Archive everything",
       "calls": [
         {

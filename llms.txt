@@ -19,7 +19,7 @@ Every export of `heim-mcp` (see `src/index.ts`):
 - `FixtureTodo` (type) — `{ id: number; title: string; list: "home" | "shopping" | "garden"; due: string | null; done: boolean }`.
 - `loadCases(path: string): CaseFileT` — reads and checks a case file; a bad file or duplicate id throws `Error("<path>: ...")`.
 - `CaseFileT` (type) — `{ today: string; cases: EvalCase[] }`.
-- `EvalCase` (type) — `{ id: string; message: string; calls: EvalCall[] }`.
+- `EvalCase` (type) — `{ id: string; message: string; calls: EvalCall[]; replay_only?: boolean }`.
 - `EvalCall` (type) — `{ name: string; arguments: Record<string, unknown>; reply: string; error?: boolean }`.
 - `connect(backend: ToolBackend): Promise<Client>` — an MCP `Client` joined to `createServer(backend, ...)` over the SDK's in-memory transport.
 - `replayCase(backend: ToolBackend, c: EvalCase): Promise<string[]>` — runs a case through the demo server; returns one line per mismatch, empty when the case is golden.
@@ -72,7 +72,7 @@ The demo is an in-memory household todo list; `createDemoBackend(today)` with `t
 
 ## Eval
 
-A case file is `{ "today": "YYYY-MM-DD", "cases": [...] }`; each case is `{ "id", "message", "calls": [{ "name", "arguments", "reply", "error"? }] }`. `error: true` means the call should fail with `reply` as its error text. The shipped cases are in `eval/demo-cases.json`.
+A case file is `{ "today": "YYYY-MM-DD", "cases": [...] }`; each case is `{ "id", "message", "replay_only"?, "calls": [{ "name", "arguments", "reply", "error"? }] }`. `error: true` means the call should fail with `reply` as its error text. `replay_only: true` marks a case that replay mode runs but model mode skips. The shipped cases are in `eval/demo-cases.json`.
 
 ```json
 {
@@ -99,10 +99,10 @@ Replay mode runs each case against a fresh demo backend through an MCP client ov
 npx -p heim-mcp heim-mcp-eval --replay
 ```
 
-Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). Set `OPENAI_API_KEY` if the endpoint needs a key:
+Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). It compares each call after the validator's corrections, ignores extra read-only lookups, and skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key:
 
 ```sh
 npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
 ```
 
-Both modes print one line per case and `<passed>/<total> cases`, and exit non-zero on a failure.
+Both modes print one line per case and exit non-zero on a failure. Replay mode's summary line is `<passed>/<total> cases`; model mode's is `<passed>/<scored> cases, <skipped> replay-only skipped`.

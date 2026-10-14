@@ -1,50 +1,34 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
 
 import { loadCases } from "../eval/cases.ts";
-import { connect } from "../eval/connect.ts";
-import { replayCase } from "../eval/replay.ts";
-import { runModelCase } from "../eval/model.ts";
-import { matchCalls } from "../eval/match.ts";
-import { createDemoBackend } from "../demo/backend.ts";
+import { runEval } from "../eval/run.ts";
+import type { ModelOptions } from "../eval/model.ts";
 
 const { values } = parseArgs({
   options: {
     replay: { type: "boolean", default: false },
     "base-url": { type: "string", default: "http://localhost:8080/v1" },
     model: { type: "string", default: "local" },
-    cases: { type: "string", default: new URL("../../eval/demo-cases.json", import.meta.url).pathname },
+    cases: {
+      type: "string",
+      default: fileURLToPath(new URL("../../eval/demo-cases.json", import.meta.url)),
+    },
   },
 });
 
 const file = loadCases(values.cases);
 
-let passed = 0;
-for (const c of file.cases) {
-  let mismatches: string[];
-  const backend = createDemoBackend(file.today);
-  const client = await connect(backend);
-  try {
-    if (values.replay) {
-      mismatches = await replayCase(backend, c);
-    } else {
-      const { calls } = await runModelCase(client, c, file.today, {
-        baseUrl: values["base-url"],
-        model: values.model,
-        apiKey: process.env.OPENAI_API_KEY,
-        fetch,
-      });
-      mismatches = matchCalls(c.calls, calls, backend.tools());
-    }
-  } finally {
-    await client.close();
-  }
-  if (mismatches.length === 0) {
-    passed++;
-    console.log(`ok   ${c.id}`);
-  } else {
-    console.log(`FAIL ${c.id}: ${mismatches.join("; ")}`);
-  }
-}
-console.log(`${passed}/${file.cases.length} cases`);
-process.exit(passed === file.cases.length ? 0 : 1);
+const model: ModelOptions | undefined = values.replay
+  ? undefined
+  : {
+      baseUrl: values["base-url"],
+      model: values.model,
+      apiKey: process.env.OPENAI_API_KEY,
+      fetch,
+    };
+
+const { lines, ok } = await runEval(file, model);
+for (const line of lines) console.log(line);
+process.exit(ok ? 0 : 1);

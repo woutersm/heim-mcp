@@ -13,6 +13,7 @@ const EvalCase = Type.Object({
   id: Type.String(),
   message: Type.String(),
   calls: Type.Array(EvalCall),
+  replay_only: Type.Optional(Type.Boolean()),
 });
 
 export const CaseFile = Type.Object({
@@ -26,7 +27,12 @@ export type EvalCall = {
   reply: string;
   error?: boolean;
 };
-export type EvalCase = { id: string; message: string; calls: EvalCall[] };
+export type EvalCase = {
+  id: string;
+  message: string;
+  calls: EvalCall[];
+  replay_only?: boolean;
+};
 export type CaseFileT = { today: string; cases: EvalCase[] };
 
 /**

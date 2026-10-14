@@ -148,8 +148,8 @@ npx -p heim-mcp heim-mcp-eval --replay
 
 Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint, such as
 llama.cpp, LM Studio, Ollama or vLLM, with the tools from the server's `tools/list`. It
-reports the calls the model made against the expected ones. Set `OPENAI_API_KEY` if the
-endpoint needs a key.
+compares each call after the validator's corrections, ignores extra read-only lookups, and
+skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key.
 
 ```sh
 npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
