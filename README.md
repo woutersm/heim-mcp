@@ -155,6 +155,9 @@ skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a k
 npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
 ```
 
+On the demo's 15 cases, Qwen3.8-27B (4-bit, local) passes 9 of 9 in model mode; the other
+6 are `replay_only`. Replay passes 15 of 15.
+
 ## Why these rules
 
 The rules come from heim, a private assistant for one
