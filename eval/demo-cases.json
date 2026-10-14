@@ -14,6 +14,7 @@
     },
     {
       "id": "done-then-done-again",
+      "replay_only": true,
       "message": "Done with the gate latch, and the hallway bulb too",
       "calls": [
         {
