@@ -80,3 +80,22 @@ sentence whether the invalidity was caught in the model loop or the validator.
   <skipped> replay-only skipped`. The bin prints the lines and exits on `ok`.
 - Default `--cases` path is now `fileURLToPath(new URL(...))` — no `%20`, and a correct
   absolute path on Windows.
+
+## Phase 4: The demo never reuses an id, and reads today per call
+
+- New ids come from a per-backend counter (`idCounter`) initialized to the highest fixture
+  id and incremented only on `todo_add`; `max(existing) + 1` is gone, so a deleted id is
+  never handed out again. Deletion still removes the todo from the list, it just no longer
+  reopens the id.
+- `createDemoBackend(today?: string)`: a given date is captured at construction (eval and
+  tests need a fixed date); with no argument, `todo_add` reads
+  `new Date().toLocaleDateString("sv-SE")` at the moment each call runs, so a server left
+  running past midnight resolves `today`/`tomorrow` correctly. `src/bin/demo.ts` now calls
+  `createDemoBackend()`.
+- The clock test in `test/demo.test.ts` fakes only `Date` (`vi.useFakeTimers({ toFake:
+  ["Date"] })`) and connects inside the fake window — the InMemoryTransport keeps working
+  because timers it might use are untouched.
+- Kept inside the four files the phase allows: `llms.txt` still says `createDemoBackend(today:
+  string)`; the optional parameter drifts one word from that doc line. The phase's file
+  list wins over the docs-consistency habit, and `test/docs.test.ts` does not check that
+  line, so the gate is unaffected.

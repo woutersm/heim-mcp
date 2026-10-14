@@ -20,10 +20,10 @@ function tomorrowOf(today: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-function parseDue(due: string, today: string): string {
+function parseDue(due: string, today: () => string): string {
   const s = due.trim().toLowerCase();
-  if (s === "today") return today;
-  if (s === "tomorrow") return tomorrowOf(today);
+  if (s === "today") return today();
+  if (s === "tomorrow") return tomorrowOf(today());
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const d = new Date(s + "T00:00:00Z");
     if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s) return s;
@@ -83,8 +83,10 @@ const TOOLS: ToolDef[] = [
   },
 ];
 
-export function createDemoBackend(today: string): ToolBackend {
+export function createDemoBackend(today?: string): ToolBackend {
   const todos: FixtureTodo[] = FIXTURES.map((t) => ({ ...t }));
+  const now = () => today ?? new Date().toLocaleDateString("sv-SE");
+  let idCounter = todos.reduce((max, t) => Math.max(max, t.id), 0);
 
   const byId = (id: number) => todos.find((t) => t.id === id);
 
@@ -95,8 +97,9 @@ export function createDemoBackend(today: string): ToolBackend {
         const title = args.title as string;
         const list = (args.list as FixtureTodo["list"] | undefined) ?? "home";
         let due: string | null = null;
-        if (typeof args.due === "string") due = parseDue(args.due, today);
-        const id = todos.reduce((max, t) => Math.max(max, t.id), 0) + 1;
+        if (typeof args.due === "string") due = parseDue(args.due, now);
+        idCounter += 1;
+        const id = idCounter;
         todos.push({ id, title, list, due, done: false });
         return `Added #${id} '${title}' to ${list}${due !== null ? `, due ${due}` : ""}.`;
       }

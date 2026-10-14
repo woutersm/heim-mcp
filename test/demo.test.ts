@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
@@ -7,9 +7,9 @@ import { createServer } from "../src/server.ts";
 
 const TODAY = "2026-03-02";
 
-async function connect() {
+async function connect(today: string = TODAY) {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const server = createServer(createDemoBackend(TODAY), { name: "demo", version: "0.1.0" });
+  const server = createServer(createDemoBackend(today ?? TODAY), { name: "demo", version: "0.1.0" });
   await server.connect(serverSide);
   const client = new Client({ name: "eval", version: "0.1.0" });
   await client.connect(clientSide);
@@ -176,6 +176,53 @@ describe("demo fixtures, through the MCP client", () => {
     } finally {
       await client.close();
       await server.close();
+    }
+  });
+
+  it("never gives a deleted todo's id to a new todo", async () => {
+    const { client, server } = await connect();
+    try {
+      const add = await call(client, "todo_add", { title: "Milk" });
+      expect(add.isError).not.toBe(true);
+      expect(text(add)).toBe("Added #9 'Milk' to home.");
+
+      const del = await call(client, "todo_delete", { id: 9 });
+      expect(del.isError).not.toBe(true);
+      expect(text(del)).toBe("Deleted #9 'Milk'.");
+
+      const bread = await call(client, "todo_add", { title: "Bread" });
+      expect(bread.isError).not.toBe(true);
+      expect(text(bread)).toBe("Added #10 'Bread' to home.");
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("resolves 'tomorrow' against the clock at each call when no today is given", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 2, 2, 23, 0)); // local time; sv-SE gives 2026-03-02
+      const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+      const server = createServer(createDemoBackend(), { name: "demo", version: "0.1.0" });
+      await server.connect(serverSide);
+      const client = new Client({ name: "eval", version: "0.1.0" });
+      await client.connect(clientSide);
+      try {
+        const first = await call(client, "todo_add", { title: "Milk", due: "tomorrow" });
+        expect(first.isError).not.toBe(true);
+        expect(text(first)).toBe("Added #9 'Milk' to home, due 2026-03-03.");
+
+        vi.setSystemTime(new Date(2026, 2, 3, 1, 0)); // past midnight: 2026-03-03
+        const second = await call(client, "todo_add", { title: "Bread", due: "tomorrow" });
+        expect(second.isError).not.toBe(true);
+        expect(text(second)).toBe("Added #10 'Bread' to home, due 2026-03-04.");
+      } finally {
+        await client.close();
+        await server.close();
+      }
+    } finally {
+      vi.useRealTimers();
     }
   });
 
