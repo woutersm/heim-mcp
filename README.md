@@ -200,7 +200,22 @@ npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --pl
 ```
 
 The demo has 23 cases: 17 are scored in model mode and 6 are `replay_only`. Replay passes
-23 of 23. On the first 9 scored cases, Qwen3.8-27B (4-bit, local) passes 9 of 9 in model mode.
+23 of 23. Model mode, with and without `--plain`, thinking off, on oMLX 0.7.3 on an Apple
+M4 Pro:
+
+| Model | Plain MCP server | heim-mcp |
+| --- | --- | --- |
+| Qwen3.5-2B (MLX 4-bit) | 10/17 | 10/17 |
+| Qwen3.5-4B (MLX 4-bit) | 15/17 | 15/17 |
+| Qwen3.5-9B (MLX 4-bit) | 17/17 | 17/17 |
+| Qwen3.8-27B (UD-Q4_K_M) | 17/17 | 17/17 |
+
+Measured on 2026-10-27; the 2B and 4B were run again after unknown arguments stopped being
+errors, with the same scores. Recent Qwen models send arguments the schema accepts, so on
+these cases heim-mcp adds nothing. What the small ones miss is meaning: the whole sentence as
+the title, or a guessed id instead of a lookup. heim-mcp scores higher for the 2B when the
+tool definitions have no descriptions (13 against 12 of 17) or there are 11 tools (10 against
+9). [docs/eval-findings.md](docs/eval-findings.md) has each condition and what changed.
 
 ## Why these rules
 
