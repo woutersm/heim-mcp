@@ -172,6 +172,18 @@ describe("runModelCase", () => {
     await client.close();
   });
 
+  it("gives up on a request the endpoint never answers", async () => {
+    const client = await setup();
+    const hang = ((_url: string | URL | Request, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+      })) as typeof fetch;
+    await expect(
+      runModelCase(client, CASE, "2026-03-02", { baseUrl: "http://x/v1", model: "local", fetch: hang, timeoutMs: 20 }),
+    ).rejects.toThrow("Model endpoint did not answer within 0.02 seconds.");
+    await client.close();
+  });
+
   it("sends the system message with today, the user message, and all five tools", async () => {
     const client = await setup();
     const f = new ScriptedFetch().push(answerMessage("ok"));

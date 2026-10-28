@@ -3,6 +3,7 @@ import { createDemoBackend, createServer, prepareArguments, type ToolDef } from 
 import {
   HISTORY,
   ID_HINT,
+  TITLE_EXAMPLE,
   TITLE_HINT,
   withExtraTools,
   withHints,
@@ -115,14 +116,25 @@ describe("withTitleLookup", () => {
 });
 
 describe("withHints", () => {
-  const byName = (titleHint: boolean, idHint: boolean) =>
-    Object.fromEntries(withHints(createDemoBackend("2026-03-02"), { titleHint, idHint }).tools().map((t) => [t.name, t]));
+  const byName = (titleHint: boolean, idHint: boolean, titleExample = false) =>
+    Object.fromEntries(
+      withHints(createDemoBackend("2026-03-02"), { titleHint, idHint, titleExample })
+        .tools()
+        .map((t) => [t.name, t]),
+    );
 
   it("replaces the title description of todo_add", () => {
     const tools = byName(true, false);
     expect(props(tools.todo_add).title.description).toBe(TITLE_HINT);
     expect(props(tools.todo_done).id.description).toBe("The todo's id.");
     expect(prepareArguments(tools.todo_add, { title: "Milk" })).toEqual({ title: "Milk" });
+  });
+
+  it("adds an example to the title description when asked", () => {
+    expect(TITLE_EXAMPLE.startsWith(TITLE_HINT.slice(0, -1))).toBe(true);
+    expect(TITLE_EXAMPLE).toContain("'Bread' for 'add bread to the shopping list'");
+    expect(props(byName(false, false, true).todo_add).title.description).toBe(TITLE_EXAMPLE);
+    expect(props(byName(true, false, true).todo_add).title.description).toBe(TITLE_EXAMPLE);
   });
 
   it("replaces the id description of todo_done and todo_delete", () => {

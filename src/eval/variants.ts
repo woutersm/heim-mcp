@@ -29,8 +29,11 @@ export function withoutDescriptions(backend: ToolBackend): ToolBackend {
   return { tools: () => tools, call: (name, args) => backend.call(name, args) };
 }
 
-/** A `title` description that says what goes in it, with an example. */
-export const TITLE_HINT =
+/** A `title` description that says what goes in it. */
+export const TITLE_HINT = "Only the thing to do, without the list or the date.";
+
+/** TITLE_HINT with an example; small models sometimes copy the example itself. */
+export const TITLE_EXAMPLE =
   "Only the thing to do, without the list or the date: 'Bread' for 'add bread to the shopping list'.";
 
 /** An `id` description that says where the id comes from. */
@@ -38,12 +41,17 @@ export const ID_HINT = "The todo's id as todo_list or todo_search shows it; look
 
 /**
  * The demo tools with sharper argument descriptions: `titleHint` for
- * todo_add's title, `idHint` for the id of todo_done and todo_delete.
+ * todo_add's title (`titleExample` for the same with an example), `idHint`
+ * for the id of todo_done and todo_delete.
  */
-export function withHints(backend: ToolBackend, hints: { titleHint?: boolean; idHint?: boolean }): ToolBackend {
+export function withHints(
+  backend: ToolBackend,
+  hints: { titleHint?: boolean; titleExample?: boolean; idHint?: boolean },
+): ToolBackend {
+  const title = hints.titleExample === true ? TITLE_EXAMPLE : hints.titleHint === true ? TITLE_HINT : undefined;
   const tools = backend.tools().map((tool) => {
-    if (hints.titleHint === true && tool.name === "todo_add")
-      return redescribed(tool, (arg, d) => (arg === "title" ? TITLE_HINT : (d as string | undefined)));
+    if (title !== undefined && tool.name === "todo_add")
+      return redescribed(tool, (arg, d) => (arg === "title" ? title : (d as string | undefined)));
     if (hints.idHint === true && (tool.name === "todo_done" || tool.name === "todo_delete"))
       return redescribed(tool, (arg, d) => (arg === "id" ? ID_HINT : (d as string | undefined)));
     return tool;

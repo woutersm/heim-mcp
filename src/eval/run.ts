@@ -64,7 +64,11 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
   if (model?.extraTools === true) backend = withExtraTools(backend);
   backend = recorded(backend, reached);
   if (model?.titleLookup === true) backend = withTitleLookup(backend);
-  backend = withHints(backend, { titleHint: model?.titleHint, idHint: model?.idHint });
+  backend = withHints(backend, {
+    titleHint: model?.titleHint,
+    titleExample: model?.titleExample,
+    idHint: model?.idHint,
+  });
   if (model?.noDescriptions === true) backend = withoutDescriptions(backend);
   const prepare = model?.plain === true ? plainCall : prepareCall;
   const client = await connect(backend, prepare);

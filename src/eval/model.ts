@@ -16,6 +16,8 @@ export type ModelOptions = {
   apiKey?: string;
   fetch: typeof fetch;
   maxSteps?: number;
+  /** How long one request may take before the case fails; 300000 (five minutes) by default. */
+  timeoutMs?: number;
   /** Serve the tools with a plain MCP schema check instead of heim-mcp's, for comparison. */
   plain?: boolean;
   /** Sent as `reasoning_effort` when set; "none" turns thinking off on servers that support it. */
@@ -28,8 +30,10 @@ export type ModelOptions = {
   extraTools?: boolean;
   /** Let todo_done and todo_delete take a title instead of an id. */
   titleLookup?: boolean;
-  /** Describe todo_add's title as the item only, with an example. */
+  /** Describe todo_add's title as the item only. */
   titleHint?: boolean;
+  /** The same title description with an example ("'Bread' for 'add bread to the shopping list'"). */
+  titleExample?: boolean;
   /** Describe the id of todo_done and todo_delete as one to look up, never to guess. */
   idHint?: boolean;
 };
@@ -65,17 +69,26 @@ export async function runModelCase(
   for (let step = 0; step < maxSteps; step++) {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (opts.apiKey !== undefined) headers.authorization = `Bearer ${opts.apiKey}`;
-    const res = await opts.fetch(`${opts.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: opts.model,
-        temperature: 0,
-        messages,
-        tools,
-        ...(opts.reasoningEffort !== undefined && { reasoning_effort: opts.reasoningEffort }),
-      }),
-    });
+    const timeoutMs = opts.timeoutMs ?? 300_000;
+    let res: Response;
+    try {
+      res = await opts.fetch(`${opts.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: opts.model,
+          temperature: 0,
+          messages,
+          tools,
+          ...(opts.reasoningEffort !== undefined && { reasoning_effort: opts.reasoningEffort }),
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "TimeoutError")
+        throw new Error(`Model endpoint did not answer within ${timeoutMs / 1000} seconds.`);
+      throw e;
+    }
     if (!res.ok) throw new Error(`Model endpoint answered ${res.status}.`);
     const data = (await res.json()) as { choices?: { message?: AssistantMessage }[] };
     const message = data.choices?.[0]?.message;

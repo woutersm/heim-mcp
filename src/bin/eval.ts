@@ -16,6 +16,7 @@ const { values } = parseArgs({
     history: { type: "boolean", default: false },
     "title-lookup": { type: "boolean", default: false },
     "title-hint": { type: "boolean", default: false },
+    "title-example": { type: "boolean", default: false },
     "id-hint": { type: "boolean", default: false },
     "base-url": { type: "string", default: "http://localhost:8080/v1" },
     model: { type: "string", default: "local" },
@@ -42,6 +43,7 @@ const model: ModelOptions | undefined = values.replay
       history: values.history,
       titleLookup: values["title-lookup"],
       titleHint: values["title-hint"],
+      titleExample: values["title-example"],
       idHint: values["id-hint"],
     };
 
