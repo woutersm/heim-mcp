@@ -9,6 +9,31 @@ temperature 0, thinking off. Three repeated runs gave identical output, so each 
 server (`npx heim-mcp-eval --plain`). Scores count only calls that ran; a rejected call the model
 then retried correctly passes.
 
+## Reproduce
+
+Every row is one `heim-mcp-eval` run, once as is and once with `--plain`:
+
+| Column | Option |
+| --- | --- |
+| Cases: English / Dutch | `--cases eval/demo-cases.json` / `--cases eval/nl-cases.json` |
+| Tools: no descriptions | `--no-descriptions` |
+| Tools: 11 tools | `--extra-tools` |
+| History: 12 earlier turns | `--history` |
+| Requests the tools cannot do | `--cases eval/impossible-cases.json` |
+
+The numbers below came from the exploration script these options replace. They have not yet
+been rerun with `heim-mcp-eval` itself; one known difference is that the script counted
+`"tomorrow"` and `"2026-03-03"` as the same `due`, and the eval does not.
+
+For example, the 2B without descriptions:
+
+```sh
+npx heim-mcp-eval --base-url http://m4:8000/v1 --model Qwen3.5-2B-MLX-4bit \
+  --reasoning-effort none --no-descriptions
+npx heim-mcp-eval --base-url http://m4:8000/v1 --model Qwen3.5-2B-MLX-4bit \
+  --reasoning-effort none --no-descriptions --plain
+```
+
 ## Results
 
 | Model | Cases | Tools | History | heim | plain |

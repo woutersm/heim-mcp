@@ -153,4 +153,43 @@ describe("runEval", () => {
     const { lines } = await runEval(eggsCase, { baseUrl: "http://x/v1", model: "local", fetch: f.call, plain: true });
     expect(lines[0]).toBe('ok   eggs (rejected: todo_add {"title":"Eggs","list":"Groceries"})');
   });
+
+  it("model mode serves the variant tools the options ask for", async () => {
+    const bodies: { tools: { function: { name: string; parameters: { properties: Record<string, object> } } }[] }[] = [];
+    const capture = (async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify(answerMessage("ok")), { status: 200 });
+    }) as typeof fetch;
+    const one: CaseFileT = { today: "2026-03-02", cases: [{ id: "a", message: "hi", calls: [] }] };
+    await runEval(one, { baseUrl: "http://x/v1", model: "local", fetch: capture, extraTools: true, noDescriptions: true });
+    expect(bodies[0].tools).toHaveLength(11);
+    const add = bodies[0].tools.find((t) => t.function.name === "todo_add")!;
+    expect(add.function.parameters.properties.title).toEqual({ type: "string" });
+  });
+
+  it("prints an unscored case with what ran and the answer, and leaves it out of the score", async () => {
+    const file: CaseFileT = {
+      today: "2026-03-02",
+      cases: [{ id: "soap", message: "Put soap on the school list", calls: [], unscored: true }],
+    };
+    const f = new ScriptedFetch().push(callMessage("c1", "todo_add", { title: "Soap", list: "home" }), answerMessage("Added soap."));
+    const { lines, ok } = await runEval(file, { baseUrl: "http://x/v1", model: "local", fetch: f.call });
+    expect(lines).toEqual([
+      '---- soap: todo_add {"title":"Soap","list":"home"} | answer: Added soap.',
+      "calls: 1 ran, 0 corrected, 0 rejected",
+      "0/0 cases, 0 replay-only skipped, 1 unscored",
+    ]);
+    expect(ok).toBe(true);
+  });
+
+  it("replays every shipped case file without a failure", async () => {
+    const { readdirSync } = await import("node:fs");
+    const files = readdirSync("eval").filter((f) => f.endsWith("-cases.json"));
+    expect(files.length).toBeGreaterThanOrEqual(3);
+    for (const name of files) {
+      const { lines, ok } = await runEval(loadCases(`eval/${name}`));
+      expect(lines.filter((l) => l.startsWith("FAIL")), name).toEqual([]);
+      expect(ok, name).toBe(true);
+    }
+  });
 });

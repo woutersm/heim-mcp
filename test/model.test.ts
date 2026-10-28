@@ -231,4 +231,19 @@ describe("runModelCase", () => {
     expect(f.requests[0].body.reasoning_effort).toBe("none");
     expect("reasoning_effort" in f.requests[1].body).toBe(false);
   });
+
+  it("puts the earlier turns between the system message and the case's message when history is set", async () => {
+    const { HISTORY } = await import("../src/eval/variants.ts");
+    const client = await setup();
+    const f = new ScriptedFetch().push(answerMessage("ok"), answerMessage("ok"));
+    const opts = { baseUrl: "http://localhost:8080/v1", model: "local", fetch: f.call };
+    await runModelCase(client, CASE, "2026-03-02", { ...opts, history: true });
+    await runModelCase(client, CASE, "2026-03-02", opts);
+    await client.close();
+    const withHistory = f.requests[0].body.messages as { role: string; content?: string }[];
+    expect(withHistory[0].role).toBe("system");
+    expect(withHistory.slice(1, 13)).toEqual(HISTORY);
+    expect(withHistory[13]).toEqual({ role: "user", content: "Put milk on the groceries" });
+    expect(f.requests[1].body.messages as unknown[]).toHaveLength(2);
+  });
 });

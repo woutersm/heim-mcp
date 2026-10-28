@@ -199,6 +199,13 @@ is what heim-mcp's corrections and error sentences are worth for that model.
 npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --plain
 ```
 
+Three options change what the model sees, to find where heim-mcp starts to matter:
+`--no-descriptions` removes the argument descriptions, `--extra-tools` adds six household tools
+(eleven in all), and `--history` puts twelve earlier turns of chat before each message.
+`--cases eval/nl-cases.json` runs the cases in Dutch. `eval/impossible-cases.json` holds
+requests the tools cannot do; model mode prints what ran and the model's answer for each,
+without scoring them.
+
 The demo has 23 cases: 17 are scored in model mode and 6 are `replay_only`. Replay passes
 23 of 23. Model mode, with and without `--plain`, thinking off, on oMLX 0.7.3 on an Apple
 M4 Pro:

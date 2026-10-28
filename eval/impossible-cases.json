@@ -1,0 +1,47 @@
+{
+  "today": "2026-03-02",
+  "cases": [
+    {
+      "id": "school-list",
+      "message": "Put soap on the school list",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "office-list",
+      "message": "Zet koffie op de kantoorlijst",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "bakery-list",
+      "message": "Add bread to the bakery list",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "boodschappenlijst",
+      "message": "Zet 'schuur verven' op de boodschappenlijst",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "priority",
+      "message": "Add 'call the plumber' to home with priority high",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "due-next-friday",
+      "message": "Add 'pay the gardener' to the garden list, due next friday",
+      "calls": [],
+      "unscored": true
+    },
+    {
+      "id": "done-by-word",
+      "message": "Mark todo three as done",
+      "calls": [],
+      "unscored": true
+    }
+  ]
+}

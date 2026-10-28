@@ -1,0 +1,182 @@
+{
+  "today": "2026-03-02",
+  "cases": [
+    {
+      "id": "add-with-alias-and-day-word",
+      "message": "Zet melk op de boodschappen, voor morgen",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Melk", "list": "shopping", "due": "tomorrow" },
+          "reply": "Added #9 'Melk' to shopping, due 2026-03-03."
+        }
+      ]
+    },
+    {
+      "id": "string-id",
+      "message": "Ik ben klaar met nummer 4",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 4 },
+          "reply": "Done: #4 'Prune the apple tree'."
+        }
+      ]
+    },
+    {
+      "id": "todo-id-alias",
+      "message": "Verwijder todo 5",
+      "calls": [
+        {
+          "name": "todo_delete",
+          "arguments": { "id": 5 },
+          "reply": "Deleted #5 'Descale the kettle'."
+        }
+      ]
+    },
+    {
+      "id": "string-list-alias",
+      "message": "Zet eieren op de boodschappen",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Eieren", "list": "shopping" },
+          "reply": "Added #9 'Eieren' to shopping."
+        }
+      ]
+    },
+    {
+      "id": "null-for-optional",
+      "message": "Voeg een bezem toe, geen lijst, geen datum",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Bezem" },
+          "reply": "Added #9 'Bezem' to home."
+        }
+      ]
+    },
+    {
+      "id": "list-open-garden",
+      "message": "Wat moet er nog gebeuren in de tuin?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "garden" },
+          "reply": "#3 Fix the gate latch (garden, due 2026-03-04)\n#4 Prune the apple tree (garden)"
+        }
+      ]
+    },
+    {
+      "id": "empty-filter",
+      "message": "Zijn er al afgeronde tuintaken?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "garden", "done": true },
+          "reply": "Nothing on the list."
+        }
+      ]
+    },
+    {
+      "id": "unknown-id",
+      "message": "Ik ben klaar met taak 99",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 99 },
+          "reply": "No todo #99. Use todo_list to see the ids.",
+          "error": true
+        }
+      ]
+    },
+    {
+      "id": "dutch-shopping-alias",
+      "message": "Zet hagelslag op de boodschappen",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Hagelslag", "list": "shopping" },
+          "reply": "Added #9 'Hagelslag' to shopping."
+        }
+      ]
+    },
+    {
+      "id": "dutch-garden-alias",
+      "message": "Zet 'heg snoeien' op de tuinlijst",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "heg snoeien", "list": "garden" },
+          "reply": "Added #9 'heg snoeien' to garden."
+        }
+      ]
+    },
+    {
+      "id": "dutch-home-list",
+      "message": "Wat staat er nog open op de lijst thuis?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "home" },
+          "reply": "#5 Descale the kettle (home, due 2026-03-01)\n#7 Book chimney sweep (home, due 2026-03-10)"
+        }
+      ]
+    },
+    {
+      "id": "huis-list-add",
+      "message": "Zet 'spiegel ophangen' op de huislijst",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "spiegel ophangen", "list": "home" },
+          "reply": "Added #9 'spiegel ophangen' to home."
+        }
+      ]
+    },
+    {
+      "id": "capitalised-list",
+      "message": "Zet 'pootaardappelen' op mijn Tuin-lijst, voor morgen",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "pootaardappelen", "list": "garden", "due": "tomorrow" },
+          "reply": "Added #9 'pootaardappelen' to garden, due 2026-03-03."
+        }
+      ]
+    },
+    {
+      "id": "done-shopping",
+      "message": "Welke boodschappen heb ik al afgevinkt?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "shopping", "done": true },
+          "reply": "#8 Coffee beans (shopping) [done]"
+        }
+      ]
+    },
+    {
+      "id": "find-then-done",
+      "message": "Vink de waterkoker af",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 5 },
+          "reply": "Done: #5 'Descale the kettle'."
+        }
+      ]
+    },
+    {
+      "id": "find-then-delete",
+      "message": "Verwijder de taak over de schoorsteenveger",
+      "calls": [
+        {
+          "name": "todo_delete",
+          "arguments": { "id": 7 },
+          "reply": "Deleted #7 'Book chimney sweep'."
+        }
+      ]
+    }
+  ]
+}

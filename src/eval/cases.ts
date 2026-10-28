@@ -14,6 +14,7 @@ const EvalCase = Type.Object({
   message: Type.String(),
   calls: Type.Array(EvalCall),
   replay_only: Type.Optional(Type.Boolean()),
+  unscored: Type.Optional(Type.Boolean()),
 });
 
 export const CaseFile = Type.Object({
@@ -32,6 +33,8 @@ export type EvalCase = {
   message: string;
   calls: EvalCall[];
   replay_only?: boolean;
+  /** Model mode prints what ran and the model's answer, and leaves the case out of the score. */
+  unscored?: boolean;
 };
 export type CaseFileT = { today: string; cases: EvalCase[] };
 

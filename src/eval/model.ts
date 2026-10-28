@@ -1,5 +1,6 @@
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { EvalCase } from "./cases.ts";
+import { HISTORY } from "./variants.ts";
 
 type ChatMessage =
   | { role: "system" | "user"; content: string }
@@ -19,6 +20,12 @@ export type ModelOptions = {
   plain?: boolean;
   /** Sent as `reasoning_effort` when set; "none" turns thinking off on servers that support it. */
   reasoningEffort?: string;
+  /** Put twelve earlier turns of household chat before each case's message. */
+  history?: boolean;
+  /** Serve the tools without argument descriptions. */
+  noDescriptions?: boolean;
+  /** Serve six more household tools beside the todo tools. */
+  extraTools?: boolean;
 };
 
 const SYSTEM = (today: string) =>
@@ -42,6 +49,7 @@ export async function runModelCase(
 
   const messages: ChatMessage[] = [
     { role: "system", content: SYSTEM(today) },
+    ...(opts.history === true ? HISTORY : []),
     { role: "user", content: c.message },
   ];
   const calls: { name: string; arguments: Record<string, unknown> }[] = [];

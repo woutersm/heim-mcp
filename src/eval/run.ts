@@ -5,13 +5,15 @@ import { replayCase } from "./replay.ts";
 import { connect } from "./connect.ts";
 import { plainCall } from "./plain.ts";
 import { describeCorrections } from "./corrections.ts";
+import { withExtraTools, withoutDescriptions } from "./variants.ts";
 import { prepareCall } from "../validate.ts";
 import type { PrepareCall } from "../server.ts";
 import type { ToolDef } from "../tools.ts";
 import type { CaseFileT, EvalCase } from "./cases.ts";
 
 type CaseResult = {
-  status: "ok" | "fail" | "skip";
+  /** "info": an unscored case in model mode, shown but not counted. */
+  status: "ok" | "fail" | "skip" | "info";
   detail?: string;
   /** Model mode: what the argument check changed in the calls that ran. */
   corrected?: string[];
@@ -19,6 +21,9 @@ type CaseResult = {
   rejected?: string[];
   ran?: number;
   correctedCalls?: number;
+  /** Model mode, unscored cases: the calls that ran, and the model's answer. */
+  ranCalls?: string[];
+  answer?: string;
 };
 
 type ModelCall = { name: string; arguments: Record<string, unknown> };
@@ -41,7 +46,9 @@ function checkCall(tools: readonly ToolDef[], prepare: PrepareCall, call: ModelC
 /** Runs one case against a fresh backend; a thrown error becomes a FAIL, never stops the run. */
 async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise<CaseResult> {
   if (c.replay_only === true && model !== undefined) return { status: "skip" };
-  const backend = createDemoBackend(today);
+  let backend = createDemoBackend(today);
+  if (model?.noDescriptions === true) backend = withoutDescriptions(backend);
+  if (model?.extraTools === true) backend = withExtraTools(backend);
   const prepare = model?.plain === true ? plainCall : prepareCall;
   const client = await connect(backend, prepare);
   const result: Omit<CaseResult, "status"> = {};
@@ -50,7 +57,7 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
     if (model === undefined) {
       mismatches = await replayCase(backend, c);
     } else {
-      const { calls } = await runModelCase(client, c, today, model);
+      const { calls, answer } = await runModelCase(client, c, today, model);
       const ran: ModelCall[] = [];
       result.corrected = [];
       result.rejected = [];
@@ -66,6 +73,11 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
         if (corrections.length > 0) result.correctedCalls++;
       }
       result.ran = ran.length;
+      if (c.unscored === true) {
+        result.ranCalls = ran.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`);
+        result.answer = answer.replace(/\s+/g, " ").trim();
+        return { status: "info", ...result };
+      }
       mismatches = matchCalls(c.calls, ran, backend.tools());
     }
     if (mismatches.length === 0) return { status: "ok", ...result };
@@ -79,9 +91,15 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
 
 function line(c: EvalCase, r: CaseResult): string {
   if (r.status === "skip") return `skip ${c.id} (replay only)`;
-  let text = r.status === "ok" ? `ok   ${c.id}` : `FAIL ${c.id}: ${r.detail}`;
+  let text =
+    r.status === "info"
+      ? `---- ${c.id}: ${r.ranCalls!.length > 0 ? r.ranCalls!.join("; ") : "no call ran"}`
+      : r.status === "ok"
+        ? `ok   ${c.id}`
+        : `FAIL ${c.id}: ${r.detail}`;
   if (r.corrected !== undefined && r.corrected.length > 0) text += ` (corrected: ${r.corrected.join("; ")})`;
   if (r.rejected !== undefined && r.rejected.length > 0) text += ` (rejected: ${r.rejected.join("; ")})`;
+  if (r.status === "info") text += ` | answer: ${r.answer}`;
   return text;
 }
 
@@ -93,6 +111,7 @@ export async function runEval(
   const lines: string[] = [];
   let passed = 0;
   let skipped = 0;
+  let unscored = 0;
   let ran = 0;
   let corrected = 0;
   let rejected = 0;
@@ -100,16 +119,18 @@ export async function runEval(
     const r = await runOne(c, file.today, model);
     if (r.status === "ok") passed++;
     else if (r.status === "skip") skipped++;
+    else if (r.status === "info") unscored++;
     ran += r.ran ?? 0;
     corrected += r.correctedCalls ?? 0;
     rejected += r.rejected?.length ?? 0;
     lines.push(line(c, r));
   }
   if (model !== undefined) lines.push(`calls: ${ran} ran, ${corrected} corrected, ${rejected} rejected`);
+  const scored = file.cases.length - skipped - unscored;
   lines.push(
     model === undefined
       ? `${passed}/${file.cases.length} cases`
-      : `${passed}/${file.cases.length - skipped} cases, ${skipped} replay-only skipped`,
+      : `${passed}/${scored} cases, ${skipped} replay-only skipped` + (unscored > 0 ? `, ${unscored} unscored` : ""),
   );
-  return { lines, ok: passed === file.cases.length - skipped };
+  return { lines, ok: passed === scored };
 }

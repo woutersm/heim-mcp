@@ -11,6 +11,9 @@ const { values } = parseArgs({
     replay: { type: "boolean", default: false },
     plain: { type: "boolean", default: false },
     "reasoning-effort": { type: "string" },
+    "no-descriptions": { type: "boolean", default: false },
+    "extra-tools": { type: "boolean", default: false },
+    history: { type: "boolean", default: false },
     "base-url": { type: "string", default: "http://localhost:8080/v1" },
     model: { type: "string", default: "local" },
     cases: {
@@ -31,6 +34,9 @@ const model: ModelOptions | undefined = values.replay
       fetch,
       plain: values.plain,
       reasoningEffort: values["reasoning-effort"],
+      noDescriptions: values["no-descriptions"],
+      extraTools: values["extra-tools"],
+      history: values.history,
     };
 
 const { lines, ok } = await runEval(file, model);
