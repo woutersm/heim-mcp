@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { loadCases, type CaseFileT } from "../src/eval/cases.ts";
 import { runEval } from "../src/eval/run.ts";
 import type { ModelOptions } from "../src/eval/model.ts";
+import { ID_HINT, TITLE_HINT } from "../src/eval/variants.ts";
 
 type ChatMessage = {
   role: "assistant";
@@ -169,6 +170,19 @@ describe("runEval", () => {
     );
   });
 
+  it("scores a call by title with the id it reached the backend with", async () => {
+    const kettle: CaseFileT = {
+      today: "2026-03-02",
+      cases: [{ id: "kettle", message: "Mark the kettle as done", calls: [{ name: "todo_done", arguments: { id: 5 }, reply: "..." }] }],
+    };
+    const script = () =>
+      new ScriptedFetch().push(callMessage("c1", "todo_done", { title: "kettle" }), answerMessage("Done."));
+    const lookup = await runEval(kettle, { baseUrl: "http://x/v1", model: "local", fetch: script().call, titleLookup: true });
+    expect(lookup.lines.slice(0, 2)).toEqual(["ok   kettle", "calls: 1 ran, 0 corrected, 0 rejected"]);
+    const idsOnly = await runEval(kettle, { baseUrl: "http://x/v1", model: "local", fetch: script().call });
+    expect(idsOnly.lines[0]).toBe('FAIL kettle: expected 1 calls, got 0 (rejected: todo_done {"title":"kettle"})');
+  });
+
   it("model mode serves the variant tools the options ask for", async () => {
     const bodies: { tools: { function: { name: string; parameters: { properties: Record<string, object> } } }[] }[] = [];
     const capture = (async (_url: string | URL | Request, init?: RequestInit) => {
@@ -180,6 +194,19 @@ describe("runEval", () => {
     expect(bodies[0].tools).toHaveLength(11);
     const add = bodies[0].tools.find((t) => t.function.name === "todo_add")!;
     expect(add.function.parameters.properties.title).toEqual({ type: "string" });
+  });
+
+  it("model mode serves the hints the options ask for", async () => {
+    const bodies: { tools: { function: { name: string; parameters: { properties: Record<string, { description?: string }> } } }[] }[] = [];
+    const capture = (async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify(answerMessage("ok")), { status: 200 });
+    }) as typeof fetch;
+    const one: CaseFileT = { today: "2026-03-02", cases: [{ id: "a", message: "hi", calls: [] }] };
+    await runEval(one, { baseUrl: "http://x/v1", model: "local", fetch: capture, titleHint: true, idHint: true });
+    const tool = (name: string) => bodies[0].tools.find((t) => t.function.name === name)!.function.parameters.properties;
+    expect(tool("todo_add").title.description).toBe(TITLE_HINT);
+    expect(tool("todo_delete").id.description).toBe(ID_HINT);
   });
 
   it("prints an unscored case with what ran and the answer, and leaves it out of the score", async () => {

@@ -147,3 +147,22 @@ plain check dropped the key and listed everything, and the case still passed bec
 scorer trimmed the key. A call is now scored with the arguments its server ran it with, so
 each mode is judged on its own result. Unscored cases still show what the model sent, since
 that is what they are there to show.
+
+## Day words match their dates, and scoring happens at the backend
+
+A case that expects `"due": "tomorrow"` now also passes on the date itself (`2026-03-03` when
+the case file's today is 2026-03-02). The demo accepts both, so a model that works out the date
+did nothing wrong; the exploration script already counted them as equal, and the first
+`heim-mcp-eval` rerun did not, which made the 2B look two cases worse without descriptions.
+
+Model mode now scores the calls that reach the todo tools, logged at the backend, instead of
+the model's calls run through the argument check again. The two agree, except when a tool
+resolves its own input: with `--title-lookup`, `todo_done {"title": "kettle"}` reaches the
+backend as `todo_done {"id": 5}`, and that is what the case's expected call names. The
+lookup's own `todo_search` is read-only and ignored like any extra read-only call.
+
+## Tool-design options are eval options, not demo changes
+
+`--title-hint`, `--id-hint` and `--title-lookup` change the tools only inside the eval. The demo
+stays as the README documents it, so each pattern can be measured against the same baseline;
+whichever earns its place can move into the demo later, with its README and test.

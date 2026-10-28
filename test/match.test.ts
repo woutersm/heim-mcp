@@ -126,4 +126,24 @@ describe("matchCalls", () => {
     );
     expect(mismatches).toEqual(['call 1: argument \'id\' expected "three", got 3']);
   });
+
+  it("matches 'today' and 'tomorrow' with their dates when given the case file's today", () => {
+    const expected = [add({ title: "Milk", due: "tomorrow" }), add({ title: "Oats", due: "2026-03-02" })];
+    const actual = [
+      { name: "todo_add", arguments: { title: "Milk", due: "2026-03-03" } },
+      { name: "todo_add", arguments: { title: "Oats", due: "Today" } },
+    ];
+    expect(matchCalls(expected, actual, tools, "2026-03-02")).toEqual([]);
+    expect(matchCalls(expected, actual, tools)).toHaveLength(2);
+  });
+
+  it("still reports a date that is not the day word's date", () => {
+    const mismatches = matchCalls(
+      [add({ title: "Milk", due: "tomorrow" })],
+      [{ name: "todo_add", arguments: { title: "Milk", due: "2026-03-04" } }],
+      tools,
+      "2026-03-02",
+    );
+    expect(mismatches).toEqual(['call 1: argument \'due\' expected "tomorrow", got "2026-03-04"']);
+  });
 });

@@ -3,6 +3,19 @@ import { prepareArguments } from "../validate.ts";
 import type { EvalCall } from "./cases.ts";
 
 const key = (v: unknown): string => String(v).trim().toLowerCase();
+
+/** The date a day word stands for, relative to `today`; any other value as `key` gives it. */
+function dayKey(v: unknown, today: string | undefined): string {
+  const k = key(v);
+  if (today === undefined) return k;
+  if (k === "today") return today;
+  if (k === "tomorrow") {
+    const d = new Date(today + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  return k;
+}
 const shown = (v: unknown) => JSON.stringify(v);
 
 /**
@@ -31,12 +44,14 @@ function prepared(
  * call names are ignored; a read-only call a case expects is still required.
  * After that: a count difference, then per position a name difference or an
  * expected argument that is missing or different, values compared as
- * trimmed, lower-cased strings. Extra actual arguments are fine.
+ * trimmed, lower-cased strings. Extra actual arguments are fine. Given the
+ * case file's `today`, "today" and "tomorrow" match their dates as YYYY-MM-DD.
  */
 export function matchCalls(
   expected: EvalCall[],
   actual: { name: string; arguments: Record<string, unknown> }[],
   tools: readonly ToolDef[],
+  today?: string,
 ): string[] {
   const mismatches: string[] = [];
 
@@ -56,7 +71,7 @@ export function matchCalls(
     for (const [arg, value] of Object.entries(e)) {
       if (!(arg in a))
         mismatches.push(`call ${i + 1}: argument '${arg}' expected ${shown(value)}, got <absent>`);
-      else if (key(value) !== key(a[arg]))
+      else if (dayKey(value, today) !== dayKey(a[arg], today))
         mismatches.push(`call ${i + 1}: argument '${arg}' expected ${shown(value)}, got ${shown(a[arg])}`);
     }
   }

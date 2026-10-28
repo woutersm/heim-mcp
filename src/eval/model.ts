@@ -26,6 +26,12 @@ export type ModelOptions = {
   noDescriptions?: boolean;
   /** Serve six more household tools beside the todo tools. */
   extraTools?: boolean;
+  /** Let todo_done and todo_delete take a title instead of an id. */
+  titleLookup?: boolean;
+  /** Describe todo_add's title as the item only, with an example. */
+  titleHint?: boolean;
+  /** Describe the id of todo_done and todo_delete as one to look up, never to guess. */
+  idHint?: boolean;
 };
 
 const SYSTEM = (today: string) =>

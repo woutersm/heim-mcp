@@ -5,10 +5,10 @@ import { replayCase } from "./replay.ts";
 import { connect } from "./connect.ts";
 import { plainCall } from "./plain.ts";
 import { describeCorrections } from "./corrections.ts";
-import { withExtraTools, withoutDescriptions } from "./variants.ts";
+import { withExtraTools, withHints, withoutDescriptions, withTitleLookup } from "./variants.ts";
 import { prepareCall } from "../validate.ts";
 import type { PrepareCall } from "../server.ts";
-import type { ToolDef } from "../tools.ts";
+import type { ToolBackend, ToolDef } from "../tools.ts";
 import type { CaseFileT, EvalCase } from "./cases.ts";
 
 type CaseResult = {
@@ -30,31 +30,42 @@ type ModelCall = { name: string; arguments: Record<string, unknown> };
 
 /**
  * Whether the server ran a call rather than turning it away at the argument
- * check, the arguments it ran with, and what the check changed. A turned-away
- * call is not scored: the model read the error and may have retried, and only
- * what ran counts, with the arguments it ran with.
+ * check, and what the check changed. A turned-away call is not scored: the
+ * model read the error and may have retried, and only what ran counts.
  */
-function checkCall(
-  tools: readonly ToolDef[],
-  prepare: PrepareCall,
-  call: ModelCall,
-): { args: Record<string, unknown>; corrections: string[] } | null {
+function checkCall(tools: readonly ToolDef[], prepare: PrepareCall, call: ModelCall): string[] | null {
   const tool = tools.find((t) => t.name === call.name);
   if (tool === undefined) return null;
   try {
-    const { args } = prepare(tool, call.arguments);
-    return { args, corrections: describeCorrections(tool, call.arguments, args) };
+    return describeCorrections(tool, call.arguments, prepare(tool, call.arguments).args);
   } catch {
     return null;
   }
 }
 
+/** The backend, logging each call that reaches it with the arguments it got. */
+function recorded(backend: ToolBackend, log: ModelCall[]): ToolBackend {
+  return {
+    tools: () => backend.tools(),
+    call(name, args) {
+      log.push({ name, arguments: args });
+      return backend.call(name, args);
+    },
+  };
+}
+
 /** Runs one case against a fresh backend; a thrown error becomes a FAIL, never stops the run. */
 async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise<CaseResult> {
   if (c.replay_only === true && model !== undefined) return { status: "skip" };
+  // Scored are the calls that reach the todo tools (or the extra ones), with
+  // the arguments they got: after the server's check, and after a title lookup.
+  const reached: ModelCall[] = [];
   let backend = createDemoBackend(today);
-  if (model?.noDescriptions === true) backend = withoutDescriptions(backend);
   if (model?.extraTools === true) backend = withExtraTools(backend);
+  backend = recorded(backend, reached);
+  if (model?.titleLookup === true) backend = withTitleLookup(backend);
+  backend = withHints(backend, { titleHint: model?.titleHint, idHint: model?.idHint });
+  if (model?.noDescriptions === true) backend = withoutDescriptions(backend);
   const prepare = model?.plain === true ? plainCall : prepareCall;
   const client = await connect(backend, prepare);
   const result: Omit<CaseResult, "status"> = {};
@@ -65,28 +76,26 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
     } else {
       const { calls, answer } = await runModelCase(client, c, today, model);
       const sent: ModelCall[] = [];
-      const ran: ModelCall[] = [];
       result.corrected = [];
       result.rejected = [];
       result.correctedCalls = 0;
       for (const call of calls) {
-        const checked = checkCall(backend.tools(), prepare, call);
-        if (checked === null) {
+        const corrections = checkCall(backend.tools(), prepare, call);
+        if (corrections === null) {
           result.rejected.push(`${call.name} ${JSON.stringify(call.arguments)}`);
           continue;
         }
         sent.push(call);
-        ran.push({ name: call.name, arguments: checked.args });
-        result.corrected.push(...checked.corrections);
-        if (checked.corrections.length > 0) result.correctedCalls++;
+        result.corrected.push(...corrections);
+        if (corrections.length > 0) result.correctedCalls++;
       }
-      result.ran = ran.length;
+      result.ran = sent.length;
       if (c.unscored === true) {
         result.ranCalls = sent.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`);
         result.answer = answer.replace(/\s+/g, " ").trim();
         return { status: "info", ...result };
       }
-      mismatches = matchCalls(c.calls, ran, backend.tools());
+      mismatches = matchCalls(c.calls, reached, backend.tools(), today);
     }
     if (mismatches.length === 0) return { status: "ok", ...result };
     return { status: "fail", detail: mismatches.join("; "), ...result };

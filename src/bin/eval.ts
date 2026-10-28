@@ -14,6 +14,9 @@ const { values } = parseArgs({
     "no-descriptions": { type: "boolean", default: false },
     "extra-tools": { type: "boolean", default: false },
     history: { type: "boolean", default: false },
+    "title-lookup": { type: "boolean", default: false },
+    "title-hint": { type: "boolean", default: false },
+    "id-hint": { type: "boolean", default: false },
     "base-url": { type: "string", default: "http://localhost:8080/v1" },
     model: { type: "string", default: "local" },
     cases: {
@@ -37,6 +40,9 @@ const model: ModelOptions | undefined = values.replay
       noDescriptions: values["no-descriptions"],
       extraTools: values["extra-tools"],
       history: values.history,
+      titleLookup: values["title-lookup"],
+      titleHint: values["title-hint"],
+      idHint: values["id-hint"],
     };
 
 const { lines, ok } = await runEval(file, model);
