@@ -202,6 +202,9 @@ npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --pl
 Three options change what the model sees, to find where heim-mcp starts to matter:
 `--no-descriptions` removes the argument descriptions, `--extra-tools` adds six household tools
 (eleven in all), and `--history` puts twelve earlier turns of chat before each message.
+Three options try a tool design: `--title-hint` describes `todo_add`'s title as the item only,
+with an example; `--id-hint` describes the id of `todo_done` and `todo_delete` as one to look
+up, never to guess; `--title-lookup` lets those two take a title instead of an id.
 `--cases eval/nl-cases.json` runs the cases in Dutch. `eval/impossible-cases.json` holds
 requests the tools cannot do; model mode prints what ran and the model's answer for each,
 without scoring them.
@@ -220,7 +223,7 @@ M4 Pro:
 Measured with `heim-mcp-eval` on 2026-10-28. Recent Qwen models send arguments the schema accepts, so on
 these cases heim-mcp adds nothing. What the small ones miss is meaning: the whole sentence as
 the title, or a guessed id instead of a lookup. heim-mcp scores higher for the 2B when the
-tool definitions have no descriptions (11 against 10 of 17) or there are 11 tools (10 against
+tool definitions have no descriptions (13 against 12 of 17) or there are 11 tools (10 against
 9). [docs/eval-findings.md](docs/eval-findings.md) has each condition and what changed.
 
 ## Why these rules
