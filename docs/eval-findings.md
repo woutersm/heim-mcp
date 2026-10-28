@@ -21,9 +21,10 @@ Every row is one `heim-mcp-eval` run, once as is and once with `--plain`:
 | History: 12 earlier turns | `--history` |
 | Requests the tools cannot do | `--cases eval/impossible-cases.json` |
 
-The numbers below came from the exploration script these options replace. They have not yet
-been rerun with `heim-mcp-eval` itself; one known difference is that the script counted
-`"tomorrow"` and `"2026-03-03"` as the same `due`, and the eval does not.
+The first table below came from the exploration script these options replace, before the
+changes it led to. That script counted `"tomorrow"` and `"2026-03-03"` as the same `due`; the
+eval does not, so a few small-model scores are lower there. The table under "After the
+changes" is `heim-mcp-eval` itself, and is what these commands reproduce.
 
 For example, the 2B without descriptions:
 
@@ -34,7 +35,7 @@ npx heim-mcp-eval --base-url http://m4:8000/v1 --model Qwen3.5-2B-MLX-4bit \
   --reasoning-effort none --no-descriptions --plain
 ```
 
-## Results
+## Results (exploration script, before the changes)
 
 | Model | Cases | Tools | History | heim | plain |
 | --- | --- | --- | --- | --- | --- |
@@ -98,18 +99,48 @@ before it changes `prepareArguments`.
 
 ## After the changes (2026-10-28)
 
-All three went in (see `docs/decisions.md`). The heim side was run again under the same
-conditions; the plain side did not change.
+All three went in (see `docs/decisions.md`). Then every condition was run again with
+`heim-mcp-eval`, once as is and once with `--plain`:
 
-| Model | Condition | plain | heim before | heim after | What changed |
+| Model | Cases | Tools | History | heim | plain |
 | --- | --- | --- | --- | --- | --- |
-| 0.8B | English, no descriptions | 4/17 | 3/17 | 4/17 | `"done": "false"` on `todo_add` dropped, not rejected |
-| 2B | English, no descriptions | 12/17 | 12/17 | 13/17 | `"list": "", "due": ""` read as absent |
-| 2B | English, 11 tools | 9/17 | 10/17 | 10/17 | `"list\n"` trimmed; no rejection and retry needed |
-| 2B | "with priority high" | added | nothing added, model said it was | added, with the note | unknown `priority` dropped |
+| 0.8B | English | demo | none | 7/17 | 7/17 |
+| 0.8B | English | no descriptions | none | 4/17 | 4/17 |
+| 0.8B | English | 11 tools | none | 1/17 | 1/17 |
+| 0.8B | English | demo | 12 earlier turns | 1/17 | 1/17 |
+| 0.8B | Dutch | demo | none | 2/16 | 2/16 |
+| 0.8B | Dutch | 11 tools | 12 earlier turns | 1/16 | 1/16 |
+| 2B | English | demo | none | 10/17 | 10/17 |
+| 2B | English | no descriptions | none | **11/17** | 10/17 |
+| 2B | English | 11 tools | none | **10/17** | 9/17 |
+| 2B | English | demo | 12 earlier turns | 9/17 | 9/17 |
+| 2B | Dutch | demo | none | 6/16 | 6/16 |
+| 2B | Dutch | 11 tools | 12 earlier turns | 9/16 | 9/16 |
+| 4B | English | demo | none | 15/17 | 15/17 |
+| 4B | English | no descriptions | none | 14/17 | 14/17 |
+| 4B | English | 11 tools | none | 14/17 | 14/17 |
+| 4B | English | demo | 12 earlier turns | 15/17 | 15/17 |
+| 4B | Dutch | demo | none | 15/16 | 15/16 |
+| 4B | Dutch | 11 tools | 12 earlier turns | 14/16 | 14/16 |
+| 9B | English | demo | none | 17/17 | 17/17 |
+| 9B | Dutch | demo | none | 16/16 | 16/16 |
+| 9B | Dutch | 11 tools | 12 earlier turns | 16/16 | 16/16 |
+| 27B | English | demo | none | 17/17 | 17/17 |
 
-Every other condition scored the same as before and the same as plain. heim-mcp now corrected 5
-calls and rejected none; before it corrected 0 and rejected 10.
+Across these runs heim-mcp ran 399 calls, corrected 5 and rejected none; the plain check ran
+403, dropped an unknown key from 4 and rejected 1.
+
+| Model | Condition | heim before | heim after | plain | What changed |
+| --- | --- | --- | --- | --- | --- |
+| 0.8B | English, no descriptions | one below plain | 4/17 | 4/17 | `"done": "false"` on `todo_add` dropped, not rejected |
+| 2B | English, no descriptions | same as plain | 11/17 | 10/17 | `"list": "", "due": ""` read as absent |
+| 2B | English, 11 tools | one above plain | 10/17 | 9/17 | `"list\n"` trimmed; no rejection and retry needed |
+| 2B | "with priority high" | nothing added, model said it was | added, with the note | added | unknown `priority` dropped |
+
+"Before" is relative to plain because the before runs used the exploration script's scoring.
+The 2B's other misses without descriptions are the same in both modes: `"due": "2026-03-03"`
+where the case expects `"tomorrow"` (twice), the whole sentence as the title, a guessed id 1
+(twice) and one request with no call.
 
 So, on Qwen3.5: heim-mcp no longer does worse than a plain server anywhere, and does better in
 two conditions, both for the 2B. From 4B up the two are identical. The gain is small and

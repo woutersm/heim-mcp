@@ -217,11 +217,10 @@ M4 Pro:
 | Qwen3.5-9B (MLX 4-bit) | 17/17 | 17/17 |
 | Qwen3.8-27B (UD-Q4_K_M) | 17/17 | 17/17 |
 
-Measured on 2026-10-27; the 2B and 4B were run again after unknown arguments stopped being
-errors, with the same scores. Recent Qwen models send arguments the schema accepts, so on
+Measured with `heim-mcp-eval` on 2026-10-28. Recent Qwen models send arguments the schema accepts, so on
 these cases heim-mcp adds nothing. What the small ones miss is meaning: the whole sentence as
 the title, or a guessed id instead of a lookup. heim-mcp scores higher for the 2B when the
-tool definitions have no descriptions (13 against 12 of 17) or there are 11 tools (10 against
+tool definitions have no descriptions (11 against 10 of 17) or there are 11 tools (10 against
 9). [docs/eval-findings.md](docs/eval-findings.md) has each condition and what changed.
 
 ## Why these rules
