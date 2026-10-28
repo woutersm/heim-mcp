@@ -20,6 +20,7 @@ Every row is one `heim-mcp-eval` run, once as is and once with `--plain`:
 | Tools: 11 tools | `--extra-tools` |
 | History: 12 earlier turns | `--history` |
 | Requests the tools cannot do | `--cases eval/impossible-cases.json` |
+| Tool designs (last section) | `--title-hint`, `--title-example`, `--id-hint`, `--title-lookup` |
 
 The first table below came from the exploration script these options replace, before the
 changes it led to. The table under "After the changes" is `heim-mcp-eval` itself, and is what
@@ -145,3 +146,52 @@ So, on Qwen3.5: heim-mcp no longer does worse than a plain server anywhere, and 
 two conditions, both for the 2B. From 4B up the two are identical. The gain is small and
 specific: it shows up when a small model gets tool definitions without descriptions or many
 tools, which is when it starts sending empty values and stray keys.
+
+## Tool design (2026-10-28)
+
+The misses that remain are about meaning: the whole sentence as the title, a guessed id 1.
+No argument check can fix those, but the tool definitions can. Four designs, each an eval
+option, all with heim-mcp on, the rest as above:
+
+| Option | What the model sees |
+| --- | --- |
+| `--title-hint` | `todo_add`'s title described as "Only the thing to do, without the list or the date." instead of "What to do." |
+| `--title-example` | The same, plus ": 'Bread' for 'add bread to the shopping list'" |
+| `--id-hint` | The id of `todo_done` and `todo_delete` described as "The todo's id as todo_list or todo_search shows it; look it up first, never guess it." |
+| `--title-lookup` | `todo_done` and `todo_delete` also take a title; one match is acted on, several or none get a sentence |
+
+| Model | Cases | demo | title hint | title example | id hint | title lookup | title hint + id hint + lookup |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.8B | English | 7/17 | 5/17 | 7/17 | 5/17 | 6/17 | 4/17 |
+| 0.8B | Dutch | 2/16 | 2/16 | 1/16 | 1/16 | 2/16 | 2/16 |
+| 2B | English | 10/17 | **13/17** | 13/17 | 10/17 | 11/17 | **14/17** |
+| 2B | Dutch | 7/16 | **10/16** | 9/16 | 7/16 | 7/16 | **10/16** |
+| 4B | English | 15/17 | **16/17** | 17/17 | 15/17 | 15/17 | **16/17** |
+| 4B | Dutch | 15/16 | **16/16** | 16/16 | 15/16 | 15/16 | **16/16** |
+
+For example, the 2B with all three:
+
+```sh
+npx heim-mcp-eval --base-url http://m4:8000/v1 --model Qwen3.5-2B-MLX-4bit \
+  --reasoning-effort none --title-hint --id-hint --title-lookup
+```
+
+What this says:
+
+1. **One sentence in a description did more than every argument correction together.** The
+   title hint took the 2B from 10 to 13 of 17 in English and from 7 to 10 of 16 in Dutch, and
+   the 4B to 16 in both. heim-mcp's corrections gained one case in two conditions.
+2. **Small models copy examples.** With the example, the 2B added "Bread" for "Zet melk op de
+   boodschappen". The 4B gained one English case from it; the 2B lost one Dutch case. A
+   description that says what goes in an argument works without one.
+3. **Telling a model not to guess an id changed nothing.** The 2B still sent id 1 for "Mark the
+   kettle as done". Letting the tool take a title fixed both of those cases in English, because
+   the model no longer needs an id it does not have. In Dutch the 2B made no call at all for
+   those requests, which no tool design reaches.
+4. **The 0.8B moves one or two cases either way with any change.** Nothing here helps it.
+
+Each cell is one run at temperature 0. Any change to the tools moves a borderline case or two:
+the 2B answers "Any done garden tasks?" with `done: false` in some variants and not others,
+and the 4B once wrote "Bezom" for "bezem". Read a difference of one case as noise. The
+cases were written before the hints, but the title hint aims at a failure those same cases
+showed, so a fresh set of requests would be the fairer test.

@@ -202,9 +202,10 @@ npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --pl
 Three options change what the model sees, to find where heim-mcp starts to matter:
 `--no-descriptions` removes the argument descriptions, `--extra-tools` adds six household tools
 (eleven in all), and `--history` puts twelve earlier turns of chat before each message.
-Three options try a tool design: `--title-hint` describes `todo_add`'s title as the item only,
-with an example; `--id-hint` describes the id of `todo_done` and `todo_delete` as one to look
-up, never to guess; `--title-lookup` lets those two take a title instead of an id.
+Four options try a tool design: `--title-hint` describes `todo_add`'s title as the item only,
+and `--title-example` adds an example to that; `--id-hint` describes the id of `todo_done` and
+`todo_delete` as one to look up, never to guess; `--title-lookup` lets those two take a title
+instead of an id.
 `--cases eval/nl-cases.json` runs the cases in Dutch. `eval/impossible-cases.json` holds
 requests the tools cannot do; model mode prints what ran and the model's answer for each,
 without scoring them.
@@ -225,6 +226,21 @@ these cases heim-mcp adds nothing. What the small ones miss is meaning: the whol
 the title, or a guessed id instead of a lookup. heim-mcp scores higher for the 2B when the
 tool definitions have no descriptions (13 against 12 of 17) or there are 11 tools (10 against
 9). [docs/eval-findings.md](docs/eval-findings.md) has each condition and what changed.
+
+## Designing tools small models can call
+
+What the 2B and 4B still miss is meaning, and the tool definitions moved that more than any
+argument check. Measured with the eval options above (details in
+[docs/eval-findings.md](docs/eval-findings.md#tool-design-2026-10-28)):
+
+- **Say what goes in a free-text argument.** Describing `title` as "Only the thing to do,
+  without the list or the date." instead of "What to do." took the 2B from 10 to 13 of 17 and
+  the 4B from 15 to 16: they stopped sending "Put milk on the groceries" as the title.
+- **Leave examples out of argument descriptions.** The 2B copied one: it added "Bread" for
+  "Zet melk op de boodschappen".
+- **Let the model name the thing instead of its id.** "Never guess the id" in a description
+  changed nothing; a `todo_done` that also takes a title fixed both cases where the 2B sent
+  id 1 for "Mark the kettle as done".
 
 ## Why these rules
 

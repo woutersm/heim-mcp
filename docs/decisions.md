@@ -166,3 +166,16 @@ lookup's own `todo_search` is read-only and ignored like any extra read-only cal
 `--title-hint`, `--id-hint` and `--title-lookup` change the tools only inside the eval. The demo
 stays as the README documents it, so each pattern can be measured against the same baseline;
 whichever earns its place can move into the demo later, with its README and test.
+
+## The title hint has no example
+
+`--title-hint` describes the title without an example, and `--title-example` adds one. The
+first version had the example built in; the 2B then added "Bread" for "Zet melk op de
+boodschappen". Without it the 2B scored the same in English and one better in Dutch, so the
+plain hint is the one to recommend, and the example stays an option to show the copying.
+
+## Model requests time out after five minutes
+
+A request whose connection dropped left `heim-mcp-eval` waiting forever, with oMLX idle. Each
+request now gives up after five minutes and fails its case with a sentence. Five minutes
+leaves room for a large model's slow answers; `timeoutMs` exists for the test.
