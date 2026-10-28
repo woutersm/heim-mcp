@@ -17,4 +17,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npx heim-mcp-eval --replay
+      # node, not npx: npx can reuse a cached link to a dist file the new build did not mark executable.
+      - run: node dist/bin/eval.js --replay
