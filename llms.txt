@@ -34,10 +34,12 @@ Every export of `heim-mcp` (see `src/index.ts`):
 Lenient in, strict after. `prepareArguments` normalises, in this order:
 
 1. An argument that arrives as a JSON string is parsed; a non-object argument fails as `Invalid arguments: expected a JSON object.`
-2. Arguments whose value is `null` are dropped.
-3. Argument names are matched in any case; `argAliases` (alias → argument) are renamed first, and the real name wins over its alias.
+2. Arguments whose value is `null` are dropped, and so are optional arguments sent as an empty or blank string.
+3. Argument names are trimmed and matched in any case; `argAliases` (alias → argument) are renamed first, and the real name wins over its alias.
 4. `"3"` becomes `3` for an integer, `"true"`/`"false"` become booleans, `42` becomes `"42"` for a string.
 5. Enum values match in any case, and through `valueAliases` (per argument, alias → value): `Groceries` and `boodschappen` become `shopping`.
+
+An unknown argument is dropped rather than rejected: the call runs, and the server adds `Ignored unknown argument 'colour'. todo_add takes: title, list, due.` on a new line after the reply. If the call fails for another reason, the error names the unknown argument too (`Unknown argument 'colour'. todo_add takes: title, list, due.`).
 
 Then the strict TypeBox schema runs; the schema the model sees in `tools/list` is unchanged by any of this.
 
@@ -101,7 +103,7 @@ Replay mode runs each case against a fresh demo backend through an MCP client ov
 npx heim-mcp-eval --replay
 ```
 
-Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). It compares each call after the validator's corrections, ignores extra read-only lookups, and skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key:
+Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). It compares each call after the validator's corrections, ignores extra read-only lookups, and skips cases marked `replay_only`. A call the server turns away at the argument check is not scored; only the calls that ran are. Each case line notes what the check corrected and which calls it rejected, and a `calls: <ran> ran, <corrected> corrected, <rejected> rejected` line comes before the summary. `--plain` serves the same tools with a plain MCP server's check instead (unknown keys dropped, no corrections, the SDK's `Input validation error` text), to compare scores. Set `OPENAI_API_KEY` if the endpoint needs a key; `--reasoning-effort <value>` is sent as `reasoning_effort`:
 
 ```sh
 npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b

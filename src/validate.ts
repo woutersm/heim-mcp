@@ -59,8 +59,18 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 /**
  * Turns whatever a model sent into the clean arguments a tool runs with.
  * Throws `ToolError` whose message is one English sentence per problem.
+ * An unknown argument is dropped, not an error on its own.
  */
 export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, unknown> {
+  return prepareCall(tool, raw).args;
+}
+
+/**
+ * prepareArguments, plus the unknown argument names it dropped, so the server
+ * can say after the reply that they were ignored. When the call is rejected
+ * for another reason, the unknown names are part of the error instead.
+ */
+export function prepareCall(tool: ToolDef, raw: unknown): { args: Record<string, unknown>; ignored: string[] } {
   let value: unknown = raw;
   if (raw !== undefined && typeof raw === "string") {
     try {
@@ -88,8 +98,10 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
   // overwrites its alias in either order; the last write for a case-clash
   // wins. Unknown keys keep the order they were sent in.
   const renamed: Record<string, unknown> = {};
+  // Names are trimmed first: a model sometimes sends "list\n".
   for (const pass of [0, 1]) {
-    for (const [key, val] of Object.entries(obj)) {
+    for (const [rawKey, val] of Object.entries(obj)) {
+      const key = rawKey.trim();
       const isAlias = tool.argAliases?.[key] !== undefined;
       if ((pass === 0) !== isAlias) continue;
       let target: string | undefined = tool.argAliases?.[key];
@@ -108,7 +120,9 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
     // typebox 1.x marks optionality on the property itself, not via a required array.
     const required = !prop["~optional"];
     let v = renamed[name];
-    const present = renamed[name] !== undefined;
+    // An empty or blank string for an optional argument means "not given", like null.
+    if (!required && typeof v === "string" && v.trim() === "") v = undefined;
+    const present = v !== undefined;
     const type = propertyType(prop);
     const enums = enumValues(prop) ?? [];
     if (enums.length > 0) allowedLists[name] = enums;
@@ -172,14 +186,10 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
     result[name] = v;
   }
 
-  // Unknown keys, in the order they were sent.
-  for (const key of Object.keys(renamed)) {
-    if (!names.includes(key)) {
-      sentences.push(`Unknown argument '${key}'. ${tool.name} takes: ${names.join(", ")}.`);
-    }
-  }
-
+  // Unknown keys, in the order they were sent: named in an error, otherwise dropped.
+  const ignored = Object.keys(renamed).filter((key) => !names.includes(key));
   if (sentences.length > 0) {
+    for (const key of ignored) sentences.push(`Unknown argument '${key}'. ${tool.name} takes: ${names.join(", ")}.`);
     throw new ToolError(sentences.join(" "));
   }
 
@@ -187,5 +197,5 @@ export function prepareArguments(tool: ToolDef, raw: unknown): Record<string, un
     throw new ToolError(`Invalid arguments for '${tool.name}'.`);
   }
 
-  return result;
+  return { args: result, ignored };
 }

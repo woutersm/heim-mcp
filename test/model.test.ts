@@ -220,4 +220,15 @@ describe("runModelCase", () => {
     await client2.close();
     expect("authorization" in f2.requests[0].headers).toBe(false);
   });
+
+  it("sends reasoning_effort only when it is set", async () => {
+    const client = await setup();
+    const f = new ScriptedFetch().push(answerMessage("ok"), answerMessage("ok"));
+    const opts = { baseUrl: "http://localhost:8080/v1", model: "local", fetch: f.call };
+    await runModelCase(client, CASE, "2026-03-02", { ...opts, reasoningEffort: "none" });
+    await runModelCase(client, CASE, "2026-03-02", opts);
+    await client.close();
+    expect(f.requests[0].body.reasoning_effort).toBe("none");
+    expect("reasoning_effort" in f.requests[1].body).toBe(false);
+  });
 });

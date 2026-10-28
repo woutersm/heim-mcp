@@ -36,7 +36,7 @@ describe("runEval", () => {
     const file = loadCases("eval/demo-cases.json");
     const { lines, ok } = await runEval(file);
     for (const line of lines) expect(line).not.toMatch(/^FAIL/);
-    expect(lines[lines.length - 1]).toBe("15/15 cases");
+    expect(lines[lines.length - 1]).toBe("23/23 cases");
     expect(ok).toBe(true);
   });
 
@@ -64,6 +64,7 @@ describe("runEval", () => {
     expect(lines).toEqual([
       "skip replay-only-case (replay only)",
       "FAIL list-case: expected 1 calls, got 0",
+      "calls: 0 ran, 0 corrected, 0 rejected",
       "0/1 cases, 1 replay-only skipped",
     ]);
     expect(ok).toBe(false);
@@ -94,5 +95,62 @@ describe("runEval", () => {
     expect(lines[1].startsWith("FAIL second")).toBe(true);
     expect(lines[lines.length - 1]).toBe("0/2 cases, 0 replay-only skipped");
     expect(ok).toBe(false);
+  });
+
+  const eggsCase: CaseFileT = {
+    today: "2026-03-02",
+    cases: [
+      {
+        id: "eggs",
+        message: "Put eggs on the groceries",
+        calls: [{ name: "todo_add", arguments: { title: "Eggs", list: "Groceries" }, reply: "..." }],
+      },
+    ],
+  };
+
+  function callMessage(id: string, name: string, args: Record<string, unknown>): ChatResponse {
+    return {
+      choices: [
+        { message: { role: "assistant", tool_calls: [{ id, type: "function", function: { name, arguments: JSON.stringify(args) } }] } },
+      ],
+    };
+  }
+
+  it("model mode does not count a call the server turned away", async () => {
+    const f = new ScriptedFetch().push(
+      callMessage("c1", "todo_add", { list: "shopping" }),
+      callMessage("c2", "todo_add", { title: "Eggs", list: "shopping" }),
+      answerMessage("Added."),
+    );
+    const model: ModelOptions = { baseUrl: "http://x/v1", model: "local", fetch: f.call };
+    const { lines, ok } = await runEval(eggsCase, model);
+    expect(lines).toEqual([
+      'ok   eggs (rejected: todo_add {"list":"shopping"})',
+      "calls: 1 ran, 0 corrected, 1 rejected",
+      "1/1 cases, 0 replay-only skipped",
+    ]);
+    expect(ok).toBe(true);
+  });
+
+  it("plain mode fails a call that heim-mcp would have corrected", async () => {
+    const script = () =>
+      new ScriptedFetch().push(callMessage("c1", "todo_add", { title: "Eggs", list: "Groceries" }), answerMessage("Added."));
+    const heim = await runEval(eggsCase, { baseUrl: "http://x/v1", model: "local", fetch: script().call });
+    expect(heim.lines[0]).toBe('ok   eggs (corrected: list "Groceries"→"shopping")');
+    expect(heim.lines[1]).toBe("calls: 1 ran, 1 corrected, 0 rejected");
+    const plain = await runEval(eggsCase, { baseUrl: "http://x/v1", model: "local", fetch: script().call, plain: true });
+    expect(plain.lines[0]).toBe('FAIL eggs: expected 1 calls, got 0 (rejected: todo_add {"title":"Eggs","list":"Groceries"})');
+    expect(plain.lines[1]).toBe("calls: 0 ran, 0 corrected, 1 rejected");
+    expect(plain.ok).toBe(false);
+  });
+
+  it("plain mode passes when the model reads the error and retries correctly", async () => {
+    const f = new ScriptedFetch().push(
+      callMessage("c1", "todo_add", { title: "Eggs", list: "Groceries" }),
+      callMessage("c2", "todo_add", { title: "Eggs", list: "shopping" }),
+      answerMessage("Added."),
+    );
+    const { lines } = await runEval(eggsCase, { baseUrl: "http://x/v1", model: "local", fetch: f.call, plain: true });
+    expect(lines[0]).toBe('ok   eggs (rejected: todo_add {"title":"Eggs","list":"Groceries"})');
   });
 });

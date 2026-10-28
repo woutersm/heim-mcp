@@ -14,8 +14,10 @@ from a clone.
 ## Capabilities
 
 - Serves any `ToolBackend` over MCP, with `createServer` for any transport or `serveStdio`.
-- Normalises arguments before the schema check: JSON-string arguments, `null` values,
-  argument aliases, numbers and booleans sent as strings, enum values in any case.
+- Normalises arguments before the schema check: JSON-string arguments, `null` and empty
+  optional values, argument aliases and padded names, numbers and booleans sent as strings,
+  enum values in any case.
+- Drops unknown arguments and runs the call, then says after the reply what it ignored.
 - Returns every failure as an MCP result with `isError: true` and one sentence, so the model
   reads it and retries.
 - Rejects tools with nested objects or arrays in their arguments at startup.
@@ -65,11 +67,11 @@ Claude Desktop, in `claude_desktop_config.json`, with the absolute path to your 
 
 ## Define your own tools
 
-```ts
-import Type from "typebox";
 Until heim-mcp is on npm, install it into your project from a built clone with
 `npm install /path/to/heim-mcp`.
 
+```ts
+import Type from "typebox";
 import { serveStdio, ToolError, type ToolBackend } from "heim-mcp";
 
 const backend: ToolBackend = {
@@ -105,12 +107,26 @@ the model as its message. Any other error reaches the model as an internal-error
 Before the schema check, heim-mcp:
 
 - parses arguments that arrive as a JSON string
-- drops arguments whose value is `null`
-- renames aliases from `argAliases`, and matches argument names in any case
+- drops arguments whose value is `null`, and optional arguments sent as an empty or blank string
+- trims whitespace around argument names, renames aliases from `argAliases`, and matches
+  argument names in any case
 - converts `"3"` to `3` for an integer, `"true"` to `true` for a boolean, and `42` to `"42"`
   for a string
 - matches enum values in any case, and through `valueAliases` (`Groceries` and `boodschappen`
   become `shopping`)
+
+An unknown argument does not fail the call. heim-mcp drops it, runs the tool, and adds one
+sentence after the reply:
+
+```
+Added #9 'Milk' to home.
+Ignored unknown argument 'colour'. todo_add takes: title, list, due.
+```
+
+In the eval, a 2B model whose call was rejected over an unknown argument then answered as if
+the call had worked. Dropping the argument does what it meant, and the sentence still tells it
+what the tool takes. When a
+call fails for another reason, the unknown argument is named in the error as well.
 
 The schema the model sees in `tools/list` stays strict.
 
@@ -122,7 +138,6 @@ Each problem gets one sentence that names what is allowed:
 Missing argument 'title'.
 Argument 'id' must be an integer.
 Argument 'list' must be one of: home, shopping, garden.
-Unknown argument 'colour'. todo_add takes: title, list, due.
 Unknown tool 'todo_finish'. Tools: todo_add, todo_list, todo_done, todo_delete, todo_search.
 ```
 
@@ -164,14 +179,28 @@ npx heim-mcp-eval --replay
 Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint, such as
 llama.cpp, LM Studio, Ollama or vLLM, with the tools from the server's `tools/list`. It
 compares each call after the validator's corrections, ignores extra read-only lookups, and
-skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key.
+skips cases marked `replay_only`. A call the server turns away at the argument check does not
+count: the model reads the error and may retry, and only the calls that ran are scored. Each
+case line also shows what the check corrected (`list "Groceries"→"shopping"`) and which calls
+it rejected, and a `calls:` line totals them. Set
+`OPENAI_API_KEY` if the endpoint needs a key, and `--reasoning-effort none` to turn thinking
+off on a server that supports it.
+
+```sh
+npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
+```
+
+`--plain` runs the same cases against the same tools with the argument check of a plain MCP
+server: unknown keys dropped, everything else checked against the schema as sent, and a miss
+answered with the SDK's `Input validation error` text. The difference between the two scores
+is what heim-mcp's corrections and error sentences are worth for that model.
 
 ```sh
 npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --plain
 ```
 
-On the demo's 15 cases, Qwen3.8-27B (4-bit, local) passes 9 of 9 in model mode; the other
-6 are `replay_only`. Replay passes 15 of 15.
+The demo has 23 cases: 17 are scored in model mode and 6 are `replay_only`. Replay passes
+23 of 23. On the first 9 scored cases, Qwen3.8-27B (4-bit, local) passes 9 of 9 in model mode.
 
 ## Why these rules
 
@@ -198,6 +227,7 @@ calls of its own.
 ```sh
 npm ci
 npm run typecheck && npm test && npm run build
+npx heim-mcp-eval --replay
 ```
 
 No test touches the network, spawns a process or starts a server.
@@ -205,4 +235,3 @@ No test touches the network, spawns a process or starts a server.
 ## License
 
 MIT
-npx heim-mcp-eval --replay

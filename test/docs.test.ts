@@ -37,10 +37,10 @@ function readmeErrorLines(): string[] {
 }
 
 describe("README error block", () => {
-  it("has exactly the five sentences the code produces", async () => {
+  it("has exactly the four sentences the code produces", async () => {
     const lines = readmeErrorLines();
-    expect(lines).toHaveLength(5);
-    const [missing, integer, enumLine, unknown, unknownTool] = lines;
+    expect(lines).toHaveLength(4);
+    const [missing, integer, enumLine, unknownTool] = lines;
     expect(missing).toBe(toolErrorMessage(() => prepareArguments(tools.todo_add, {})));
     expect(missing).toBe("Missing argument 'title'.");
     expect(integer).toBe(toolErrorMessage(() => prepareArguments(tools.todo_done, { id: "abc" })));
@@ -49,10 +49,6 @@ describe("README error block", () => {
       toolErrorMessage(() => prepareArguments(tools.todo_add, { title: "Milk", list: "office" })),
     );
     expect(enumLine).toBe("Argument 'list' must be one of: home, shopping, garden.");
-    expect(unknown).toBe(
-      toolErrorMessage(() => prepareArguments(tools.todo_add, { title: "Milk", colour: "red" })),
-    );
-    expect(unknown).toBe("Unknown argument 'colour'. todo_add takes: title, list, due.");
     const server = createServer(backend, { name: "demo", version: "0.1.0" });
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
     await server.connect(serverSide);
@@ -62,10 +58,18 @@ describe("README error block", () => {
       content: { type: string; text?: string }[];
       isError?: boolean;
     };
+    const ignored = (await client.callTool({ name: "todo_add", arguments: { title: "Milk", colour: "red" } })) as {
+      content: { type: string; text?: string }[];
+      isError?: boolean;
+    };
     await client.close();
     await server.close();
     expect(res.isError).toBe(true);
     expect(res.content[0]?.text).toBe(unknownTool);
+    expect(ignored.isError).not.toBe(true);
+    const note = ignored.content[0]?.text?.split("\n").pop();
+    expect(note).toBe("Ignored unknown argument 'colour'. todo_add takes: title, list, due.");
+    expect(readme, "README.md should show the ignored-argument sentence").toContain(note);
   });
 });
 
@@ -122,7 +126,7 @@ describe("llms.txt", () => {
       "Missing argument 'title'.",
       "Argument 'id' must be an integer.",
       "Argument 'list' must be one of: home, shopping, garden.",
-      "Unknown argument 'colour'. todo_add takes: title, list, due.",
+      "Ignored unknown argument 'colour'. todo_add takes: title, list, due.",
     ];
     for (const s of sentences) {
       expect(llms, `llms.txt should contain '${s}'`).toContain(s);

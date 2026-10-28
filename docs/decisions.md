@@ -99,3 +99,42 @@ sentence whether the invalidity was caught in the model loop or the validator.
   string)`; the optional parameter drifts one word from that doc line. The phase's file
   list wins over the docs-consistency habit, and `test/docs.test.ts` does not check that
   line, so the gate is unaffected.
+
+## Plain mode and what model mode scores (2026-10-26)
+
+- `--plain` exists to measure heim-mcp against the baseline a reader would otherwise use: an
+  MCP SDK server with a zod schema. It mimics that server — unknown keys dropped, everything
+  else checked as sent, the SDK's `Input validation error: Invalid arguments for tool …` text —
+  and returns the miss as an `isError` result, the more forgiving of the SDK's two behaviours,
+  so the baseline is not handicapped.
+- Model mode now drops calls the server turned away at the argument check, in both modes.
+  Before, the matcher ran every call through `prepareArguments`, so a plain-mode call with
+  `list: "Groceries"` would have matched even though the server rejected it, and the two
+  modes would have scored the same. A model that reads an error and retries correctly passes;
+  that recovery is what the error sentences are for.
+- A tool call whose arguments were not JSON is recorded with `{}`; if that happens to satisfy
+  the check (a tool with no required arguments) it counts as a call that ran. No demo case
+  expects a no-argument call, so it can only turn a pass into a fail, never the reverse.
+- Eight model-mode cases were added (2026-10-26) so a heim-vs-plain score rests on 17 cases,
+  not 9. They aim at what the corrections cover and a plain server rejects: Dutch and English
+  list aliases (`boodschappen`, `tuin`, `thuis`, `house`) and a capitalised enum value, plus
+  two where the model has to look an id up first. Titles are Dutch words with no common
+  English form (`hagelslag`) so a model translating the title does not fail for that reason.
+
+## Unknown arguments are dropped, not rejected (2026-10-27)
+
+- Evidence is in `docs/eval-findings.md`. Over 342 model calls from Qwen3.5 0.8B–9B the old
+  corrections never fired; what changed outcomes was unknown arguments. A plain server drops
+  them silently; heim-mcp rejected them, and small models handled the rejection worse: the
+  0.8B's retry went wrong, and the 2B answered "I've added the task" without retrying.
+- So an unknown argument no longer fails a call on its own. The call runs and the reply gets
+  one more line, `Ignored unknown argument 'x'. <tool> takes: ….` That keeps what was useful
+  about the error (the model learns the real names) without stopping the action. When the call
+  fails for another reason, the unknown names stay in the error, since the model is retrying
+  anyway. `prepareCall` returns the dropped names; `prepareArguments` keeps its signature.
+- Optional arguments sent as `""` or blank are read as absent, like `null`; the 2B sent
+  `"list": "", "due": ""` and never recovered from the enum error. A required argument keeps
+  its empty string, so an empty title is still the backend's business.
+- Argument names are trimmed before matching; the 2B sent `"list\n"`.
+- Rejected alternative: map a key that equals an enum value (`"shopping": "True"`) onto that
+  enum. Seen once, from the 0.8B, and too clever to be predictable.

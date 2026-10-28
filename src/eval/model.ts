@@ -15,6 +15,10 @@ export type ModelOptions = {
   apiKey?: string;
   fetch: typeof fetch;
   maxSteps?: number;
+  /** Serve the tools with a plain MCP schema check instead of heim-mcp's, for comparison. */
+  plain?: boolean;
+  /** Sent as `reasoning_effort` when set; "none" turns thinking off on servers that support it. */
+  reasoningEffort?: string;
 };
 
 const SYSTEM = (today: string) =>
@@ -50,7 +54,13 @@ export async function runModelCase(
     const res = await opts.fetch(`${opts.baseUrl}/chat/completions`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ model: opts.model, temperature: 0, messages, tools }),
+      body: JSON.stringify({
+        model: opts.model,
+        temperature: 0,
+        messages,
+        tools,
+        ...(opts.reasoningEffort !== undefined && { reasoning_effort: opts.reasoningEffort }),
+      }),
     });
     if (!res.ok) throw new Error(`Model endpoint answered ${res.status}.`);
     const data = (await res.json()) as { choices?: { message?: AssistantMessage }[] };

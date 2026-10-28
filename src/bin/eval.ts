@@ -9,6 +9,8 @@ import type { ModelOptions } from "../eval/model.ts";
 const { values } = parseArgs({
   options: {
     replay: { type: "boolean", default: false },
+    plain: { type: "boolean", default: false },
+    "reasoning-effort": { type: "string" },
     "base-url": { type: "string", default: "http://localhost:8080/v1" },
     model: { type: "string", default: "local" },
     cases: {
@@ -27,6 +29,8 @@ const model: ModelOptions | undefined = values.replay
       model: values.model,
       apiKey: process.env.OPENAI_API_KEY,
       fetch,
+      plain: values.plain,
+      reasoningEffort: values["reasoning-effort"],
     };
 
 const { lines, ok } = await runEval(file, model);

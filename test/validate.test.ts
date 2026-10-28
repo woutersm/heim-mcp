@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import Type from "typebox";
 import { prepareArguments, assertFlat, type ToolDef } from "../src/index.ts";
+import { prepareCall } from "../src/validate.ts";
 
 const todoAdd: ToolDef = {
   name: "todo_add",
@@ -169,9 +170,24 @@ describe("prepareArguments", () => {
       parameters: Type.Object({ id: Type.Integer({ minimum: 1, maximum: 10 }) }),
     };
     expect(message(bounded, { id: 11 })).toBe("Argument 'id' must be at most 10.");
-    expect(message(todoAdd, { title: "Milk", colour: "red" })).toBe(
-      "Unknown argument 'colour'. todo_add takes: title, list, due.",
-    );
+  });
+
+  it("drops an unknown key and reports it as ignored, rather than rejecting the call", () => {
+    expect(prepareArguments(todoAdd, { title: "Milk", colour: "red" })).toEqual({ title: "Milk" });
+    expect(prepareCall(todoAdd, { title: "Milk", colour: "red", size: 2 })).toEqual({
+      args: { title: "Milk" },
+      ignored: ["colour", "size"],
+    });
+    expect(prepareCall(todoAdd, { title: "Milk" })).toEqual({ args: { title: "Milk" }, ignored: [] });
+  });
+
+  it("reads an empty or blank string for an optional argument as absent", () => {
+    expect(prepareArguments(todoAdd, { title: "Broom", list: "", due: "  " })).toEqual({ title: "Broom" });
+  });
+
+  it("trims whitespace around argument names", () => {
+    expect(prepareArguments(todoAdd, { "title\n": "Milk", " list ": "garden" })).toEqual({ title: "Milk", list: "garden" });
+    expect(prepareArguments(todoAdd, { " text": "Milk" })).toEqual({ title: "Milk" });
   });
 
   it("joins two errors in property order, then unknown keys", () => {

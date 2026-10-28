@@ -93,6 +93,20 @@ describe("tools/call", () => {
     }
   });
 
+  it("runs a call with an unknown argument and says after the reply that it was ignored", async () => {
+    const { client, server } = await connect(makeBackend());
+    try {
+      const res = await client.callTool({ name: "todo_add", arguments: { title: "Milk", colour: "red" } });
+      expect(res.isError).not.toBe(true);
+      expect(res.content).toEqual([
+        { type: "text", text: "Added 'Milk'.\nIgnored unknown argument 'colour'. todo_add takes: title, list." },
+      ]);
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
   it("answers an unknown tool without rejecting", async () => {
     const { client, server } = await connect(makeBackend());
     try {

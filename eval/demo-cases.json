@@ -153,8 +153,7 @@
         {
           "name": "todo_done",
           "arguments": { "id": 6, "forever": true },
-          "reply": "Unknown argument 'forever'. todo_done takes: id.",
-          "error": true
+          "reply": "#6 'Replace hallway bulb' was already done.\nIgnored unknown argument 'forever'. todo_done takes: id."
         }
       ]
     },
@@ -180,6 +179,94 @@
           "arguments": { "id": 99 },
           "reply": "No todo #99. Use todo_list to see the ids.",
           "error": true
+        }
+      ]
+    },
+    {
+      "id": "dutch-shopping-alias",
+      "message": "Zet hagelslag op de boodschappen",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Hagelslag", "list": "boodschappen" },
+          "reply": "Added #9 'Hagelslag' to shopping."
+        }
+      ]
+    },
+    {
+      "id": "dutch-garden-alias",
+      "message": "Zet 'heg snoeien' op de tuinlijst",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "heg snoeien", "list": "tuin" },
+          "reply": "Added #9 'heg snoeien' to garden."
+        }
+      ]
+    },
+    {
+      "id": "dutch-home-list",
+      "message": "Wat staat er nog open op de lijst thuis?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "thuis" },
+          "reply": "#5 Descale the kettle (home, due 2026-03-01)\n#7 Book chimney sweep (home, due 2026-03-10)"
+        }
+      ]
+    },
+    {
+      "id": "house-alias-add",
+      "message": "Add 'hang the mirror' to the house list",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "hang the mirror", "list": "house" },
+          "reply": "Added #9 'hang the mirror' to home."
+        }
+      ]
+    },
+    {
+      "id": "capitalised-list",
+      "message": "Add 'Seed potatoes' to my Garden list, due tomorrow",
+      "calls": [
+        {
+          "name": "todo_add",
+          "arguments": { "title": "Seed potatoes", "list": "Garden", "due": "tomorrow" },
+          "reply": "Added #9 'Seed potatoes' to garden, due 2026-03-03."
+        }
+      ]
+    },
+    {
+      "id": "done-shopping",
+      "message": "Which shopping items have I already ticked off?",
+      "calls": [
+        {
+          "name": "todo_list",
+          "arguments": { "list": "shopping", "done": true },
+          "reply": "#8 Coffee beans (shopping) [done]"
+        }
+      ]
+    },
+    {
+      "id": "find-then-done",
+      "message": "Mark the kettle as done",
+      "calls": [
+        {
+          "name": "todo_done",
+          "arguments": { "id": 5 },
+          "reply": "Done: #5 'Descale the kettle'."
+        }
+      ]
+    },
+    {
+      "id": "find-then-delete",
+      "message": "Delete the chimney sweep todo",
+      "calls": [
+        {
+          "name": "todo_delete",
+          "arguments": { "id": 7 },
+          "reply": "Deleted #7 'Book chimney sweep'."
         }
       ]
     }
