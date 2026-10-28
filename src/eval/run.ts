@@ -30,14 +30,20 @@ type ModelCall = { name: string; arguments: Record<string, unknown> };
 
 /**
  * Whether the server ran a call rather than turning it away at the argument
- * check, and what the check changed. A turned-away call is not scored: the
- * model read the error and may have retried, and only what ran counts.
+ * check, the arguments it ran with, and what the check changed. A turned-away
+ * call is not scored: the model read the error and may have retried, and only
+ * what ran counts, with the arguments it ran with.
  */
-function checkCall(tools: readonly ToolDef[], prepare: PrepareCall, call: ModelCall): string[] | null {
+function checkCall(
+  tools: readonly ToolDef[],
+  prepare: PrepareCall,
+  call: ModelCall,
+): { args: Record<string, unknown>; corrections: string[] } | null {
   const tool = tools.find((t) => t.name === call.name);
   if (tool === undefined) return null;
   try {
-    return describeCorrections(tool, call.arguments, prepare(tool, call.arguments).args);
+    const { args } = prepare(tool, call.arguments);
+    return { args, corrections: describeCorrections(tool, call.arguments, args) };
   } catch {
     return null;
   }
@@ -58,23 +64,25 @@ async function runOne(c: EvalCase, today: string, model?: ModelOptions): Promise
       mismatches = await replayCase(backend, c);
     } else {
       const { calls, answer } = await runModelCase(client, c, today, model);
+      const sent: ModelCall[] = [];
       const ran: ModelCall[] = [];
       result.corrected = [];
       result.rejected = [];
       result.correctedCalls = 0;
       for (const call of calls) {
-        const corrections = checkCall(backend.tools(), prepare, call);
-        if (corrections === null) {
+        const checked = checkCall(backend.tools(), prepare, call);
+        if (checked === null) {
           result.rejected.push(`${call.name} ${JSON.stringify(call.arguments)}`);
           continue;
         }
-        ran.push(call);
-        result.corrected.push(...corrections);
-        if (corrections.length > 0) result.correctedCalls++;
+        sent.push(call);
+        ran.push({ name: call.name, arguments: checked.args });
+        result.corrected.push(...checked.corrections);
+        if (checked.corrections.length > 0) result.correctedCalls++;
       }
       result.ran = ran.length;
       if (c.unscored === true) {
-        result.ranCalls = ran.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`);
+        result.ranCalls = sent.map((call) => `${call.name} ${JSON.stringify(call.arguments)}`);
         result.answer = answer.replace(/\s+/g, " ").trim();
         return { status: "info", ...result };
       }

@@ -154,6 +154,21 @@ describe("runEval", () => {
     expect(lines[0]).toBe('ok   eggs (rejected: todo_add {"title":"Eggs","list":"Groceries"})');
   });
 
+  it("scores the arguments the server ran, not the ones the model sent", async () => {
+    const garden: CaseFileT = {
+      today: "2026-03-02",
+      cases: [{ id: "garden", message: "What's left in the garden?", calls: [{ name: "todo_list", arguments: { list: "garden" }, reply: "..." }] }],
+    };
+    const script = () =>
+      new ScriptedFetch().push(callMessage("c1", "todo_list", { "list\n": "garden" }), answerMessage("Two things."));
+    const heim = await runEval(garden, { baseUrl: "http://x/v1", model: "local", fetch: script().call });
+    expect(heim.lines[0]).toBe('ok   garden (corrected: "list\\n"→list)');
+    const plain = await runEval(garden, { baseUrl: "http://x/v1", model: "local", fetch: script().call, plain: true });
+    expect(plain.lines[0]).toBe(
+      'FAIL garden: call 1: argument \'list\' expected "garden", got <absent> (corrected: "list\\n" dropped)',
+    );
+  });
+
   it("model mode serves the variant tools the options ask for", async () => {
     const bodies: { tools: { function: { name: string; parameters: { properties: Record<string, object> } } }[] }[] = [];
     const capture = (async (_url: string | URL | Request, init?: RequestInit) => {

@@ -138,3 +138,12 @@ sentence whether the invalidity was caught in the model loop or the validator.
 - Argument names are trimmed before matching; the 2B sent `"list\n"`.
 - Rejected alternative: map a key that equals an enum value (`"shopping": "True"`) onto that
   enum. Seen once, from the 0.8B, and too clever to be predictable.
+
+## Model mode scores the arguments that ran
+
+Model mode used to score the arguments the model sent, run through heim-mcp's own preparation.
+In `--plain` mode that hid what the plain server did: the 2B sent `"list\n": "garden"`, the
+plain check dropped the key and listed everything, and the case still passed because the
+scorer trimmed the key. A call is now scored with the arguments its server ran it with, so
+each mode is judged on its own result. Unscored cases still show what the model sent, since
+that is what they are there to show.
