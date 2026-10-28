@@ -2,6 +2,8 @@
 
 > TypeScript library that serves tools over MCP (stdio) to small and local models: lenient with what a model sends, strict after that, every mistake one English sentence.
 
+Not on npm yet. Clone https://github.com/woutersm/heim-mcp, run `npm ci && npm run build`, and run the `heim-mcp-demo` and `heim-mcp-eval` bins from the clone; another project installs it with `npm install /path/to/heim-mcp`.
+
 ## API
 
 Every export of `heim-mcp` (see `src/index.ts`):
@@ -96,13 +98,13 @@ A case file is `{ "today": "YYYY-MM-DD", "cases": [...] }`; each case is `{ "id"
 Replay mode runs each case against a fresh demo backend through an MCP client over an in-memory transport; no model, runs in CI:
 
 ```sh
-npx -p heim-mcp heim-mcp-eval --replay
+npx heim-mcp-eval --replay
 ```
 
 Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint with the tools from `tools/list`, then reports the calls the model made against the expected ones (`matchCalls` compares argument values as trimmed, lowercased strings). It compares each call after the validator's corrections, ignores extra read-only lookups, and skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key:
 
 ```sh
-npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
+npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
 ```
 
 Both modes print one line per case and exit non-zero on a failure. Replay mode's summary line is `<passed>/<total> cases`; model mode's is `<passed>/<scored> cases, <skipped> replay-only skipped`.

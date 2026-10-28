@@ -1,12 +1,15 @@
 # heim-mcp
 
+[![CI](https://github.com/woutersm/heim-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/woutersm/heim-mcp/actions/workflows/ci.yml)
+
 heim-mcp is a TypeScript library that serves tools over MCP (stdio) to small and local
 models. You define each tool once with a [TypeBox](https://github.com/sinclairzx81/typebox)
 schema. heim-mcp corrects the argument mistakes small models make, checks the result against
 the schema, and returns each error as one English sentence the model can act on. It ships
 with a demo server and an eval that replays golden cases through a real MCP client.
 
-Status: in development. This README describes version 0.1.0.
+Status: in development. This README describes version 0.1.0, which is not on npm yet: run it
+from a clone.
 
 ## Capabilities
 
@@ -23,22 +26,30 @@ Status: in development. This README describes version 0.1.0.
 
 ## Try the demo
 
-The demo is an in-memory household todo list with invented data.
-
-Claude Code:
+The demo is an in-memory household todo list with invented data. Clone and build it first:
 
 ```sh
-claude mcp add heim-demo -- npx -y -p heim-mcp heim-mcp-demo
+git clone https://github.com/woutersm/heim-mcp.git
+cd heim-mcp
+npm ci && npm run build
 ```
 
-Claude Desktop, in `claude_desktop_config.json`:
+The build puts the `heim-mcp-demo` server at `dist/bin/demo.js`.
+
+Claude Code, from the clone:
+
+```sh
+claude mcp add heim-demo -- node "$PWD/dist/bin/demo.js"
+```
+
+Claude Desktop, in `claude_desktop_config.json`, with the absolute path to your clone:
 
 ```json
 {
   "mcpServers": {
     "heim-demo": {
-      "command": "npx",
-      "args": ["-y", "-p", "heim-mcp", "heim-mcp-demo"]
+      "command": "node",
+      "args": ["/absolute/path/to/heim-mcp/dist/bin/demo.js"]
     }
   }
 }
@@ -56,6 +67,9 @@ Claude Desktop, in `claude_desktop_config.json`:
 
 ```ts
 import Type from "typebox";
+Until heim-mcp is on npm, install it into your project from a built clone with
+`npm install /path/to/heim-mcp`.
+
 import { serveStdio, ToolError, type ToolBackend } from "heim-mcp";
 
 const backend: ToolBackend = {
@@ -140,10 +154,11 @@ exact reply to each call.
 ```
 
 Replay mode runs each case against a fresh backend through an MCP client over an in-memory
-transport, and compares each reply to the golden text. It needs no model and runs in CI.
+transport, and compares each reply to the golden text. It needs no model and runs in CI on
+every push. From a built clone:
 
 ```sh
-npx -p heim-mcp heim-mcp-eval --replay
+npx heim-mcp-eval --replay
 ```
 
 Model mode sends each message to an OpenAI-compatible `/chat/completions` endpoint, such as
@@ -152,7 +167,7 @@ compares each call after the validator's corrections, ignores extra read-only lo
 skips cases marked `replay_only`. Set `OPENAI_API_KEY` if the endpoint needs a key.
 
 ```sh
-npx -p heim-mcp heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b
+npx heim-mcp-eval --base-url http://localhost:8080/v1 --model qwen3-30b-a3b --plain
 ```
 
 On the demo's 15 cases, Qwen3.8-27B (4-bit, local) passes 9 of 9 in model mode; the other
@@ -190,3 +205,4 @@ No test touches the network, spawns a process or starts a server.
 ## License
 
 MIT
+npx heim-mcp-eval --replay
